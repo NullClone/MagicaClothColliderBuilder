@@ -5,15 +5,15 @@ namespace MagicaClothColliderBuilder
     [Serializable]
     public struct Bool3
     {
-        public bool x;
-        public bool y;
-        public bool z;
+        public bool X;
+        public bool Y;
+        public bool Z;
 
         public Bool3(bool x, bool y, bool z)
         {
-            this.x = x;
-            this.y = y;
-            this.z = z;
+            X = x;
+            Y = y;
+            Z = z;
         }
     }
 }

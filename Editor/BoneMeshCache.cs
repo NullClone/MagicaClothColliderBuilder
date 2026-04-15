@@ -6,37 +6,37 @@ namespace MagicaClothColliderBuilder
 {
     public class BoneMeshCache
     {
-        int _meshVertexCount;
-        int _meshTriangleCount;
-        int _meshBoneCount;
-        Matrix4x4[] _meshBindPoses;
-        Transform[] _meshBones;
-        BoneWeight[] _meshBoneWeights;
-        Vector3[] _meshVertices;
-        int[] _meshTriangles;
+        private int m_meshVertexCount;
+        private int m_meshTriangleCount;
+        private int m_meshBoneCount;
+        private Matrix4x4[] m_meshBindPoses;
+        private Transform[] m_meshBones;
+        private BoneWeight[] m_meshBoneWeights;
+        private Vector3[] m_meshVertices;
+        private int[] m_meshTriangles;
 
         // for Work
-        bool[] _targetBones;
-        bool[] _targetVertices;
-        bool[] _passedVertices;
-        bool[] _processedVertices;
-        int[] _redirectIndices;
-        int[] _boneIndices;
+        private bool[] m_targetBones;
+        private bool[] m_targetVertices;
+        private bool[] m_passedVertices;
+        private bool[] m_processedVertices;
+        private int[] m_redirectIndices;
+        private int[] m_boneIndices;
 
-        public int meshVetexCount { get { return _meshVertexCount; } }
-        public int meshTriangleCount { get { return _meshTriangleCount; } }
-        public int meshBoneCount { get { return _meshBoneCount; } }
-        public Matrix4x4[] meshBindPoses { get { return _meshBindPoses; } }
-        public Transform[] meshBones { get { return _meshBones; } }
-        public BoneWeight[] meshBoneWeights { get { return _meshBoneWeights; } }
-        public Vector3[] meshVertices { get { return _meshVertices; } }
-        public int[] meshTriangles { get { return _meshTriangles; } }
-        public bool[] targetBones { get { return _targetBones; } }
-        public bool[] targetVertices { get { return _targetVertices; } }
-        public bool[] passedVertices { get { return _passedVertices; } }
-        public bool[] processedVertices { get { return _processedVertices; } }
-        public int[] redirectIndices { get { return _redirectIndices; } }
-        public int[] boneIndices { get { return _boneIndices; } }
+        public int MeshVertexCount => m_meshVertexCount;
+        public int MeshTriangleCount => m_meshTriangleCount;
+        public int MeshBoneCount => m_meshBoneCount;
+        public Matrix4x4[] MeshBindPoses => m_meshBindPoses;
+        public Transform[] MeshBones => m_meshBones;
+        public BoneWeight[] MeshBoneWeights => m_meshBoneWeights;
+        public Vector3[] MeshVertices => m_meshVertices;
+        public int[] MeshTriangles => m_meshTriangles;
+        public bool[] TargetBones => m_targetBones;
+        public bool[] TargetVertices => m_targetVertices;
+        public bool[] PassedVertices => m_passedVertices;
+        public bool[] ProcessedVertices => m_processedVertices;
+        public int[] RedirectIndices => m_redirectIndices;
+        public int[] BoneIndices => m_boneIndices;
 
         public void Process(GameObject gameObject)
         {
@@ -56,28 +56,28 @@ namespace MagicaClothColliderBuilder
                     {
                         continue;
                     }
-                    this._meshBoneCount += skinnedMeshRenderer.bones.Length;
-                    this._meshVertexCount += skinnedMeshRenderer.sharedMesh.vertexCount;
-                    this._meshTriangleCount += skinnedMeshRenderer.sharedMesh.triangles.Length;
+                    m_meshBoneCount += skinnedMeshRenderer.bones.Length;
+                    m_meshVertexCount += skinnedMeshRenderer.sharedMesh.vertexCount;
+                    m_meshTriangleCount += skinnedMeshRenderer.sharedMesh.triangles.Length;
                 }
             }
 
-            this._meshBones = new Transform[this._meshBoneCount];
-            this._meshBindPoses = new Matrix4x4[this._meshBoneCount];
-            this._meshBoneWeights = new BoneWeight[this._meshVertexCount];
-            this._meshVertices = new Vector3[this._meshVertexCount];
-            this._meshTriangles = new int[this._meshTriangleCount];
+            m_meshBones = new Transform[m_meshBoneCount];
+            m_meshBindPoses = new Matrix4x4[m_meshBoneCount];
+            m_meshBoneWeights = new BoneWeight[m_meshVertexCount];
+            m_meshVertices = new Vector3[m_meshVertexCount];
+            m_meshTriangles = new int[m_meshTriangleCount];
 
             // for Work
-            this._targetBones = new bool[this._meshBoneCount];
-            this._targetVertices = new bool[this._meshVertexCount];
-            this._passedVertices = new bool[this._meshVertexCount];
-            this._processedVertices = new bool[this._meshVertexCount];
-            this._redirectIndices = new int[this._meshVertexCount];
-            this._boneIndices = new int[this._meshVertexCount];
-            for (int i = 0; i < this._boneIndices.Length; ++i)
+            m_targetBones = new bool[m_meshBoneCount];
+            m_targetVertices = new bool[m_meshVertexCount];
+            m_passedVertices = new bool[m_meshVertexCount];
+            m_processedVertices = new bool[m_meshVertexCount];
+            m_redirectIndices = new int[m_meshVertexCount];
+            m_boneIndices = new int[m_meshVertexCount];
+            for (int i = 0; i < m_boneIndices.Length; ++i)
             {
-                this._boneIndices[i] = -1;
+                m_boneIndices[i] = -1;
             }
 
             int meshRendererBoneIndex = 0;
@@ -98,22 +98,22 @@ namespace MagicaClothColliderBuilder
                     }
                     for (int i = 0; i < bones.Length; ++i)
                     {
-                        this._meshBones[meshRendererBoneIndex + i] = bones[i];
-                        this._meshBindPoses[meshRendererBoneIndex + i] = bindPoses[i];
+                        m_meshBones[meshRendererBoneIndex + i] = bones[i];
+                        m_meshBindPoses[meshRendererBoneIndex + i] = bindPoses[i];
                     }
                     for (int i = 0; i < vertices.Length; ++i)
                     {
-                        this._meshVertices[meshRendererVertexIndex + i] = vertices[i];
+                        m_meshVertices[meshRendererVertexIndex + i] = vertices[i];
                         BoneWeight boneWeight = boneWeights[i];
                         if (boneWeight.boneIndex0 >= 0) boneWeight.boneIndex0 += meshRendererBoneIndex;
                         if (boneWeight.boneIndex1 >= 0) boneWeight.boneIndex1 += meshRendererBoneIndex;
                         if (boneWeight.boneIndex2 >= 0) boneWeight.boneIndex2 += meshRendererBoneIndex;
                         if (boneWeight.boneIndex3 >= 0) boneWeight.boneIndex3 += meshRendererBoneIndex;
-                        this._meshBoneWeights[meshRendererVertexIndex + i] = boneWeight;
+                        m_meshBoneWeights[meshRendererVertexIndex + i] = boneWeight;
                     }
                     for (int i = 0; i < triangles.Length; ++i)
                     {
-                        this._meshTriangles[meshRendererTriangleIndex + i] = triangles[i] + meshRendererVertexIndex;
+                        m_meshTriangles[meshRendererTriangleIndex + i] = triangles[i] + meshRendererVertexIndex;
                     }
 
                     meshRendererBoneIndex += bones.Length;
@@ -125,14 +125,14 @@ namespace MagicaClothColliderBuilder
 
         public void CleanWork()
         {
-            Array.Clear(this._targetBones, 0, this._targetBones.Length);
-            Array.Clear(this._targetVertices, 0, this._targetVertices.Length);
-            Array.Clear(this._passedVertices, 0, this._passedVertices.Length);
-            Array.Clear(this._processedVertices, 0, this._processedVertices.Length);
-            Array.Clear(this._redirectIndices, 0, this._redirectIndices.Length);
-            for (int i = 0; i < this._boneIndices.Length; ++i)
+            Array.Clear(m_targetBones, 0, m_targetBones.Length);
+            Array.Clear(m_targetVertices, 0, m_targetVertices.Length);
+            Array.Clear(m_passedVertices, 0, m_passedVertices.Length);
+            Array.Clear(m_processedVertices, 0, m_processedVertices.Length);
+            Array.Clear(m_redirectIndices, 0, m_redirectIndices.Length);
+            for (int i = 0; i < m_boneIndices.Length; ++i)
             {
-                this._boneIndices[i] = -1;
+                m_boneIndices[i] = -1;
             }
         }
 
@@ -150,11 +150,11 @@ namespace MagicaClothColliderBuilder
                 skinnedMeshRenderers.Add(skinnedMeshRenderer);
             }
 
-            _GetSkinnedMeshRenderersInChildren(skinnedMeshRenderers, go);
+            GetSkinnedMeshRenderersInChildren(skinnedMeshRenderers, go);
             return skinnedMeshRenderers.ToArray();
         }
 
-        private static void _GetSkinnedMeshRenderersInChildren(List<SkinnedMeshRenderer> skinnedMeshRenderers, GameObject go)
+        private static void GetSkinnedMeshRenderersInChildren(List<SkinnedMeshRenderer> skinnedMeshRenderers, GameObject go)
         {
             if (skinnedMeshRenderers != null && go != null)
             {
@@ -168,7 +168,7 @@ namespace MagicaClothColliderBuilder
                             skinnedMeshRenderers.Add(skinnedMeshRenderer);
                         }
 
-                        _GetSkinnedMeshRenderersInChildren(skinnedMeshRenderers, childTransform.gameObject);
+                        GetSkinnedMeshRenderersInChildren(skinnedMeshRenderers, childTransform.gameObject);
                     }
                 }
             }

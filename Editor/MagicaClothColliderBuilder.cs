@@ -22,7 +22,7 @@ namespace MagicaClothColliderBuilder
             Tight,
         }
 
-        public static ColliderFitMode fitMode = ColliderFitMode.Normal;
+        public static ColliderFitMode FitMode = ColliderFitMode.Normal;
 
         [MenuItem("GameObject/Magica Cloth/Generate Colliders")]
         public static void Generate()
@@ -30,23 +30,23 @@ namespace MagicaClothColliderBuilder
             var prop = new SABoneColliderProperty();
 
             // Apply presets based on the fit mode
-            switch (fitMode)
+            switch (FitMode)
             {
                 case ColliderFitMode.Loose:
-                    prop.splitProperty.boneTriangleExtent = BoneTriangleExtent.Vertex2;
-                    prop.reducerProperty.scale = new Vector3(1.2f, 1.2f, 1.2f);
-                    prop.reducerProperty.fitType = FitType.Outer;
+                    prop.SplitProperty.BoneTriangleExtent = BoneTriangleExtent.Vertex2;
+                    prop.ReducerProperty.Scale = new Vector3(1.2f, 1.2f, 1.2f);
+                    prop.ReducerProperty.FitType = FitType.Outer;
                     break;
                 case ColliderFitMode.Tight:
-                    prop.splitProperty.boneTriangleExtent = BoneTriangleExtent.Vertex1;
-                    prop.reducerProperty.scale = new Vector3(0.9f, 0.9f, 0.9f);
-                    prop.reducerProperty.fitType = FitType.Inner;
+                    prop.SplitProperty.BoneTriangleExtent = BoneTriangleExtent.Vertex1;
+                    prop.ReducerProperty.Scale = new Vector3(0.9f, 0.9f, 0.9f);
+                    prop.ReducerProperty.FitType = FitType.Inner;
                     break;
                 case ColliderFitMode.Normal:
                 default:
-                    prop.splitProperty.boneTriangleExtent = BoneTriangleExtent.Vertex2;
-                    prop.reducerProperty.scale = Vector3.one;
-                    prop.reducerProperty.fitType = FitType.Outer;
+                    prop.SplitProperty.BoneTriangleExtent = BoneTriangleExtent.Vertex2;
+                    prop.ReducerProperty.Scale = Vector3.one;
+                    prop.ReducerProperty.FitType = FitType.Outer;
                     break;
             }
 
@@ -75,9 +75,9 @@ namespace MagicaClothColliderBuilder
 
     public class ReducerResult
     {
-        public Quaternion rotation;
-        public Vector3 center;
-        public Vector3 boxA;
-        public Vector3 boxB;
+        public Quaternion Rotation;
+        public Vector3 Center;
+        public Vector3 BoxA;
+        public Vector3 BoxB;
     }
 }

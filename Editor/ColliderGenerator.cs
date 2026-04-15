@@ -8,20 +8,20 @@ namespace MagicaClothColliderBuilder
 {
     public class ColliderGenerator
     {
-        private readonly GameObject avatarRoot;
-        private readonly SABoneColliderProperty property;
-        private readonly Animator animator;
+        private readonly GameObject m_avatarRoot;
+        private readonly SABoneColliderProperty m_property;
+        private readonly Animator m_animator;
 
         public ColliderGenerator(GameObject avatarRoot, SABoneColliderProperty properties)
         {
-            this.avatarRoot = avatarRoot;
-            this.property = properties;
-            this.animator = avatarRoot.GetComponent<Animator>();
+            m_avatarRoot = avatarRoot;
+            m_property = properties;
+            m_animator = avatarRoot.GetComponent<Animator>();
         }
 
         public void Process()
         {
-            if (animator == null || animator.avatar == null || !animator.avatar.isHuman)
+            if (m_animator == null || m_animator.avatar == null || !m_animator.avatar.isHuman)
             {
                 Debug.LogError("Animator with a valid Humanoid Avatar is required on the root object.");
                 return;
@@ -37,9 +37,9 @@ namespace MagicaClothColliderBuilder
 
             // 2. Pre-process and cache all mesh data
             var boneMeshCache = new BoneMeshCache();
-            boneMeshCache.Process(avatarRoot);
+            boneMeshCache.Process(m_avatarRoot);
 
-            if (boneMeshCache.meshBoneCount == 0)
+            if (boneMeshCache.MeshBoneCount == 0)
             {
                 Debug.LogError("No skinned meshes found to generate colliders from.");
                 return;
@@ -51,7 +51,7 @@ namespace MagicaClothColliderBuilder
 
             foreach (Transform boneTransform in bonesToProcess)
             {
-                var job = new ColliderGenerationJob(boneTransform.gameObject, property, boneMeshCache);
+                var job = new ColliderGenerationJob(boneTransform.gameObject, m_property, boneMeshCache);
                 if (job.Prepare())
                 {
                     generationJobs.Add(job);
@@ -85,7 +85,7 @@ namespace MagicaClothColliderBuilder
             {
                 if (i <= (int)HumanBodyBones.RightToes)
                 {
-                    var boneTransform = animator.GetBoneTransform((HumanBodyBones)i);
+                    var boneTransform = m_animator.GetBoneTransform((HumanBodyBones)i);
 
                     if (boneTransform != null)
                     {
@@ -105,7 +105,7 @@ namespace MagicaClothColliderBuilder
 
             foreach (var job in jobs)
             {
-                job.countdownEvent = countdownEvent;
+                job.CountdownEvent = countdownEvent;
                 ThreadPool.QueueUserWorkItem(job.Execute);
             }
 
@@ -119,10 +119,10 @@ namespace MagicaClothColliderBuilder
                 if (job.Result == null) continue;
 
                 var result = job.Result;
-                float sizeX = Mathf.Abs(result.boxB.x - result.boxA.x);
-                float sizeY = Mathf.Abs(result.boxB.y - result.boxA.y);
-                float sizeZ = Mathf.Abs(result.boxB.z - result.boxA.z);
-                var center = FuzzyZero((result.boxA + result.boxB) / 2.0f) + result.center;
+                float sizeX = Mathf.Abs(result.BoxB.x - result.BoxA.x);
+                float sizeY = Mathf.Abs(result.BoxB.y - result.BoxA.y);
+                float sizeZ = Mathf.Abs(result.BoxB.z - result.BoxA.z);
+                var center = FuzzyZero((result.BoxA + result.BoxB) / 2.0f) + result.Center;
 
                 var colliderGo = new GameObject("MagicaClothCollider");
                 colliderGo.transform.parent = job.TargetBone.transform;
@@ -159,7 +159,7 @@ namespace MagicaClothColliderBuilder
                     axisVec = Vector3.forward;
                 }
 
-                ComputeAxisRadii(job.Vertices, center, length, direction, job.property.reducerProperty.fitType, out var radiusAtMin, out var radiusAtMax);
+                ComputeAxisRadii(job.Vertices, center, length, direction, job.Property.ReducerProperty.FitType, out var radiusAtMin, out var radiusAtMax);
 
                 Vector3 posMin = center - (0.5f * length * axisVec);
                 Vector3 posMax = center + (0.5f * length * axisVec);

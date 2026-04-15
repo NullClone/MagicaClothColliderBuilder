@@ -8,31 +8,31 @@ namespace MagicaClothColliderBuilder
     public class ColliderGenerationJob
     {
         public GameObject TargetBone { get; }
-        public readonly SABoneColliderProperty property;
-        private readonly BoneMeshCache boneMeshCache;
+        public SABoneColliderProperty Property { get; }
+        private readonly BoneMeshCache m_boneMeshCache;
 
         public Vector3[] Vertices { get; private set; }
         public int[] Triangles { get; private set; }
         public ReducerResult Result { get; private set; }
 
-        internal CountdownEvent countdownEvent;
+        internal CountdownEvent CountdownEvent;
 
         public ColliderGenerationJob(GameObject targetBone, SABoneColliderProperty property, BoneMeshCache boneMeshCache)
         {
-            this.TargetBone = targetBone;
-            this.property = property;
-            this.boneMeshCache = boneMeshCache;
+            TargetBone = targetBone;
+            Property = property;
+            m_boneMeshCache = boneMeshCache;
         }
 
         public bool Prepare()
         {
             var boneMeshCreator = new BoneMeshCreator();
-            if (!boneMeshCreator.Process(TargetBone, property.splitProperty, boneMeshCache))
+            if (!boneMeshCreator.Process(TargetBone, Property.SplitProperty, m_boneMeshCache))
             {
                 return false;
             }
-            Vertices = boneMeshCreator.boneVertices;
-            Triangles = boneMeshCreator.boneTriangles;
+            Vertices = boneMeshCreator.BoneVertices;
+            Triangles = boneMeshCreator.BoneTriangles;
             return Vertices != null && Vertices.Length > 0;
         }
 
@@ -40,27 +40,27 @@ namespace MagicaClothColliderBuilder
         {
             try
             {
-                var reducer = new SAColliderBoxReducer
+                var reducer = new MagicaClothColliderBoxReducer
                 {
-                    reduceMode = ReduceMode.Box,
-                    vertexList = Vertices,
-                    lineList = TriangleToLineIndices(Triangles),
-                    scale = property.reducerProperty.scale,
-                    minThickness = property.reducerProperty.minThickness,
-                    offset = property.reducerProperty.offset,
-                    thicknessA = property.reducerProperty.thicknessA,
-                    thicknessB = property.reducerProperty.thicknessB,
-                    postfixTransform = true,
-                    rotation = Quaternion.identity
+                    ReduceMode = ReduceMode.Box,
+                    VertexList = Vertices,
+                    LineList = TriangleToLineIndices(Triangles),
+                    Scale = Property.ReducerProperty.Scale,
+                    MinThickness = Property.ReducerProperty.MinThickness,
+                    Offset = Property.ReducerProperty.Offset,
+                    ThicknessA = Property.ReducerProperty.ThicknessA,
+                    ThicknessB = Property.ReducerProperty.ThicknessB,
+                    PostfixTransform = true,
+                    Rotation = Quaternion.identity
                 };
                 reducer.Reduce();
 
                 Result = new ReducerResult
                 {
-                    rotation = reducer.reducedRotation,
-                    center = reducer.reducedCenter,
-                    boxA = reducer.reducedBoxA,
-                    boxB = reducer.reducedBoxB,
+                    Rotation = reducer.ReducedRotation,
+                    Center = reducer.ReducedCenter,
+                    BoxA = reducer.ReducedBoxA,
+                    BoxB = reducer.ReducedBoxB,
                 };
             }
             catch (Exception e)
@@ -69,7 +69,7 @@ namespace MagicaClothColliderBuilder
             }
             finally
             {
-                countdownEvent?.Signal();
+                CountdownEvent?.Signal();
             }
         }
 
@@ -83,9 +83,9 @@ namespace MagicaClothColliderBuilder
             var lineKeys = new HashSet<ulong>();
             for (int t = 0; t < triangles.Length; t += 3)
             {
-                lineKeys.Add(_MakeLineKey(triangles[t + 0], triangles[t + 1]));
-                lineKeys.Add(_MakeLineKey(triangles[t + 1], triangles[t + 2]));
-                lineKeys.Add(_MakeLineKey(triangles[t + 2], triangles[t + 0]));
+                lineKeys.Add(MakeLineKey(triangles[t + 0], triangles[t + 1]));
+                lineKeys.Add(MakeLineKey(triangles[t + 1], triangles[t + 2]));
+                lineKeys.Add(MakeLineKey(triangles[t + 2], triangles[t + 0]));
             }
 
             var lines = new List<int>(lineKeys.Count * 2);
@@ -98,7 +98,7 @@ namespace MagicaClothColliderBuilder
             return lines.ToArray();
         }
 
-        private static ulong _MakeLineKey(int index0, int index1)
+        private static ulong MakeLineKey(int index0, int index1)
         {
             return (index0 < index1)
                 ? (uint)index0 | ((ulong)(uint)index1 << 32)
