@@ -8,36 +8,35 @@ namespace MagicaClothColliderBuilder
 {
     public class ColliderGenerator
     {
-        private readonly GameObject m_avatarRoot;
-        private readonly SABoneColliderProperty m_property;
-        private readonly Animator m_animator;
+        private readonly GameObject m_AvatarRoot;
+        private readonly SABoneColliderProperty m_Property;
+        private readonly Animator m_Animator;
 
         public ColliderGenerator(GameObject avatarRoot, SABoneColliderProperty properties)
         {
-            m_avatarRoot = avatarRoot;
-            m_property = properties;
-            m_animator = avatarRoot.GetComponent<Animator>();
+            m_AvatarRoot = avatarRoot;
+            m_Property = properties;
+            m_Animator = avatarRoot.GetComponent<Animator>();
         }
 
         public void Process()
         {
-            if (m_animator == null || m_animator.avatar == null || !m_animator.avatar.isHuman)
+            if (m_Animator == null || m_Animator.avatar == null || !m_Animator.avatar.isHuman)
             {
                 Debug.LogError("Animator with a valid Humanoid Avatar is required on the root object.");
                 return;
             }
 
-            // 1. Collect all valid human bone transforms
             var bonesToProcess = CollectHumanBones();
+
             if (bonesToProcess.Count == 0)
             {
                 Debug.LogWarning("No human bones found to process.");
                 return;
             }
 
-            // 2. Pre-process and cache all mesh data
             var boneMeshCache = new BoneMeshCache();
-            boneMeshCache.Process(m_avatarRoot);
+            boneMeshCache.Process(m_AvatarRoot);
 
             if (boneMeshCache.MeshBoneCount == 0)
             {
@@ -45,13 +44,13 @@ namespace MagicaClothColliderBuilder
                 return;
             }
 
-            // 3. Create a generation job for each bone
             var generationJobs = new List<ColliderGenerationJob>();
             var bonesWithoutMesh = new List<Transform>();
 
             foreach (Transform boneTransform in bonesToProcess)
             {
-                var job = new ColliderGenerationJob(boneTransform.gameObject, m_property, boneMeshCache);
+                var job = new ColliderGenerationJob(boneTransform.gameObject, m_Property, boneMeshCache);
+
                 if (job.Prepare())
                 {
                     generationJobs.Add(job);
@@ -62,13 +61,9 @@ namespace MagicaClothColliderBuilder
                 }
             }
 
-            // 4. Execute jobs in parallel
             ExecuteJobs(generationJobs);
-
-            // 5. Create collider components from results
             CreateCollidersFromResults(generationJobs);
 
-            // 6. Create fallback colliders for bones that had no mesh
             foreach (Transform boneToFix in bonesWithoutMesh)
             {
                 CreateDefaultColliderForBone(boneToFix);
@@ -85,7 +80,7 @@ namespace MagicaClothColliderBuilder
             {
                 if (i <= (int)HumanBodyBones.RightToes)
                 {
-                    var boneTransform = m_animator.GetBoneTransform((HumanBodyBones)i);
+                    var boneTransform = m_Animator.GetBoneTransform((HumanBodyBones)i);
 
                     if (boneTransform != null)
                     {
@@ -105,7 +100,8 @@ namespace MagicaClothColliderBuilder
 
             foreach (var job in jobs)
             {
-                job.CountdownEvent = countdownEvent;
+                job.m_CountdownEvent = countdownEvent;
+
                 ThreadPool.QueueUserWorkItem(job.Execute);
             }
 
@@ -181,42 +177,36 @@ namespace MagicaClothColliderBuilder
             colliderGameObject.transform.localScale = Vector3.one;
             var capsuleCollider = colliderGameObject.AddComponent<MagicaCapsuleCollider>();
 
-            // If the bone has children, create a sphere that encompasses them.
             if (boneTransform.childCount > 0)
             {
-                float maxDist = 0f;
+                float maxDistance = 0f;
+
                 foreach (Transform child in boneTransform)
                 {
-                    float dist = Vector3.Distance(boneTransform.position, child.position);
-                    if (dist > maxDist)
+                    float distance = Vector3.Distance(boneTransform.position, child.position);
+
+                    if (distance > maxDistance)
                     {
-                        maxDist = dist;
+                        maxDistance = distance;
                     }
                 }
-                // Create a sphere (a capsule with equal radii and small length)
-                float radius = maxDist > 0.001f ? maxDist : 0.05f;
+
+                float radius = maxDistance > 0.001f ? maxDistance : 0.05f;
                 capsuleCollider.SetSize(radius, radius, 0.01f);
                 capsuleCollider.center = Vector3.zero;
                 capsuleCollider.direction = MagicaCapsuleCollider.Direction.Y;
             }
-            else // Otherwise, create a small default capsule.
+            else
             {
-                const float defaultRadius = 0.02f;
-                const float defaultLength = 0.02f;
-                capsuleCollider.SetSize(defaultRadius, defaultRadius, defaultLength);
+                const float DEFAULT_RADIUS = 0.02f;
+                const float DEFAULT_LENGTH = 0.02f;
+                capsuleCollider.SetSize(DEFAULT_RADIUS, DEFAULT_RADIUS, DEFAULT_LENGTH);
                 capsuleCollider.center = Vector3.zero;
                 capsuleCollider.direction = MagicaCapsuleCollider.Direction.Y;
             }
         }
 
-        static void ComputeAxisRadii(
-            Vector3[] vertices,
-            Vector3 center,
-            float length,
-            int direction, // 0:X, 1:Y, 2:Z
-            FitType fitType,
-            out float radiusAtMin,
-            out float radiusAtMax)
+        private static void ComputeAxisRadii(Vector3[] vertices, Vector3 center, float length, int direction, FitType fitType, out float radiusAtMin, out float radiusAtMax)
         {
             radiusAtMin = 0f;
             radiusAtMax = 0f;
@@ -227,47 +217,61 @@ namespace MagicaClothColliderBuilder
                 return;
             }
 
-            const int numSlices = 10;
-            var maxRadiusPerSlice = new float[numSlices];
-            var avgRadiusPerSlice = new List<float>[numSlices];
-            for (int i = 0; i < numSlices; i++)
+            const int NUM_SLICES = 10;
+
+            var maxRadiusPerSlice = new float[NUM_SLICES];
+            var avgRadiusPerSlice = new List<float>[NUM_SLICES];
+
+            for (int i = 0; i < NUM_SLICES; i++)
             {
                 avgRadiusPerSlice[i] = new List<float>();
             }
 
             float halfLen = length / 2.0f;
-            float sliceWidth = length / numSlices;
+            float sliceWidth = length / NUM_SLICES;
 
-            foreach (var v in vertices)
+            foreach (var vertex in vertices)
             {
-                Vector3 d = v - center;
-                float axisPos, distSq;
+                Vector3 delta = vertex - center;
+                float axisPosition;
+                float distanceSquared;
 
-                if (direction == 0) { axisPos = d.x; distSq = (d.y * d.y) + (d.z * d.z); }
-                else if (direction == 1) { axisPos = d.y; distSq = (d.x * d.x) + (d.z * d.z); }
-                else { axisPos = d.z; distSq = (d.x * d.x) + (d.y * d.y); }
-
-                float dist = Mathf.Sqrt(distSq);
-
-                int sliceIndex = Mathf.FloorToInt((axisPos + halfLen) / sliceWidth);
-                sliceIndex = Mathf.Clamp(sliceIndex, 0, numSlices - 1);
-
-                if (dist > maxRadiusPerSlice[sliceIndex])
+                if (direction == 0)
                 {
-                    maxRadiusPerSlice[sliceIndex] = dist;
+                    axisPosition = delta.x;
+                    distanceSquared = (delta.y * delta.y) + (delta.z * delta.z);
                 }
-                avgRadiusPerSlice[sliceIndex].Add(dist);
+                else if (direction == 1)
+                {
+                    axisPosition = delta.y;
+                    distanceSquared = (delta.x * delta.x) + (delta.z * delta.z);
+                }
+                else
+                {
+                    axisPosition = delta.z;
+                    distanceSquared = (delta.x * delta.x) + (delta.y * delta.y);
+                }
+
+                float distance = Mathf.Sqrt(distanceSquared);
+
+                int sliceIndex = Mathf.FloorToInt((axisPosition + halfLen) / sliceWidth);
+                sliceIndex = Mathf.Clamp(sliceIndex, 0, NUM_SLICES - 1);
+
+                if (distance > maxRadiusPerSlice[sliceIndex])
+                {
+                    maxRadiusPerSlice[sliceIndex] = distance;
+                }
+                avgRadiusPerSlice[sliceIndex].Add(distance);
             }
 
-            // Use the first 20% of slices for the min radius
-            int endSliceForMin = Mathf.Max(1, numSlices / 5);
-            // Use the last 20% of slices for the max radius
-            int startSliceForMax = Mathf.Min(numSlices - 1, numSlices - endSliceForMin);
+            int endSliceForMin = Mathf.Max(1, NUM_SLICES / 5);
+            int startSliceForMax = Mathf.Min(NUM_SLICES - 1, NUM_SLICES - endSliceForMin);
 
             if (fitType == FitType.Inner)
             {
                 float minSum = 0;
                 int minSumCount = 0;
+
                 for (int i = 0; i < endSliceForMin; i++)
                 {
                     if (avgRadiusPerSlice[i].Count > 0)
@@ -276,11 +280,13 @@ namespace MagicaClothColliderBuilder
                         minSumCount++;
                     }
                 }
+
                 radiusAtMin = (minSumCount > 0) ? minSum / minSumCount : 0f;
 
                 float maxSum = 0;
                 int maxSumCount = 0;
-                for (int i = startSliceForMax; i < numSlices; i++)
+
+                for (int i = startSliceForMax; i < NUM_SLICES; i++)
                 {
                     if (avgRadiusPerSlice[i].Count > 0)
                     {
@@ -290,33 +296,43 @@ namespace MagicaClothColliderBuilder
                 }
                 radiusAtMax = (maxSumCount > 0) ? maxSum / maxSumCount : 0f;
             }
-            else // Outer fit
+            else
             {
                 for (int i = 0; i < endSliceForMin; i++)
                 {
                     if (maxRadiusPerSlice[i] > radiusAtMin) radiusAtMin = maxRadiusPerSlice[i];
                 }
-                for (int i = startSliceForMax; i < numSlices; i++)
+                for (int i = startSliceForMax; i < NUM_SLICES; i++)
                 {
                     if (maxRadiusPerSlice[i] > radiusAtMax) radiusAtMax = maxRadiusPerSlice[i];
                 }
             }
 
-            // If one end has no vertices, use the other end's radius
             if (radiusAtMin <= 0.001f && radiusAtMax > 0.001f) radiusAtMin = radiusAtMax;
             if (radiusAtMax <= 0.001f && radiusAtMin > 0.001f) radiusAtMax = radiusAtMin;
 
-            // Ensure a minimum thickness
             radiusAtMin = Mathf.Max(radiusAtMin, 0.01f);
             radiusAtMax = Mathf.Max(radiusAtMax, 0.01f);
         }
 
-        public static Vector3 FuzzyZero(Vector3 v)
+        public static Vector3 FuzzyZero(Vector3 vector)
         {
-            if (Mathf.Abs(v.x) <= 0.0001f) { v.x = 0; }
-            if (Mathf.Abs(v.y) <= 0.0001f) { v.y = 0; }
-            if (Mathf.Abs(v.z) <= 0.0001f) { v.z = 0; }
-            return v;
+            if (Mathf.Abs(vector.x) <= 0.0001f)
+            {
+                vector.x = 0;
+            }
+
+            if (Mathf.Abs(vector.y) <= 0.0001f)
+            {
+                vector.y = 0;
+            }
+
+            if (Mathf.Abs(vector.z) <= 0.0001f)
+            {
+                vector.z = 0;
+            }
+
+            return vector;
         }
     }
 }

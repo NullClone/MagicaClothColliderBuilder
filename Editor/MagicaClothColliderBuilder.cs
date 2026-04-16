@@ -22,35 +22,35 @@ namespace MagicaClothColliderBuilder
             Tight,
         }
 
-        public static ColliderFitMode FitMode = ColliderFitMode.Normal;
+        public static ColliderFitMode s_FitMode = ColliderFitMode.Normal;
 
         [MenuItem("GameObject/Magica Cloth/Generate Colliders")]
         public static void Generate()
         {
-            var prop = new SABoneColliderProperty();
+            var colliderProperty = new SABoneColliderProperty();
 
             // Apply presets based on the fit mode
-            switch (FitMode)
+            switch (s_FitMode)
             {
                 case ColliderFitMode.Loose:
-                    prop.SplitProperty.BoneTriangleExtent = BoneTriangleExtent.Vertex2;
-                    prop.ReducerProperty.Scale = new Vector3(1.2f, 1.2f, 1.2f);
-                    prop.ReducerProperty.FitType = FitType.Outer;
+                    colliderProperty.SplitProperty.BoneTriangleExtent = BoneTriangleExtent.Vertex2;
+                    colliderProperty.ReducerProperty.Scale = new Vector3(1.2f, 1.2f, 1.2f);
+                    colliderProperty.ReducerProperty.FitType = FitType.Outer;
                     break;
                 case ColliderFitMode.Tight:
-                    prop.SplitProperty.BoneTriangleExtent = BoneTriangleExtent.Vertex1;
-                    prop.ReducerProperty.Scale = new Vector3(0.9f, 0.9f, 0.9f);
-                    prop.ReducerProperty.FitType = FitType.Inner;
+                    colliderProperty.SplitProperty.BoneTriangleExtent = BoneTriangleExtent.Vertex1;
+                    colliderProperty.ReducerProperty.Scale = new Vector3(0.9f, 0.9f, 0.9f);
+                    colliderProperty.ReducerProperty.FitType = FitType.Inner;
                     break;
                 case ColliderFitMode.Normal:
                 default:
-                    prop.SplitProperty.BoneTriangleExtent = BoneTriangleExtent.Vertex2;
-                    prop.ReducerProperty.Scale = Vector3.one;
-                    prop.ReducerProperty.FitType = FitType.Outer;
+                    colliderProperty.SplitProperty.BoneTriangleExtent = BoneTriangleExtent.Vertex2;
+                    colliderProperty.ReducerProperty.Scale = Vector3.one;
+                    colliderProperty.ReducerProperty.FitType = FitType.Outer;
                     break;
             }
 
-            var generator = new ColliderGenerator(Selection.activeGameObject, prop);
+            var generator = new ColliderGenerator(Selection.activeGameObject, colliderProperty);
             generator.Process();
         }
 

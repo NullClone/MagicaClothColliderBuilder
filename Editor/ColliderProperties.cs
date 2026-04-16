@@ -12,11 +12,6 @@ namespace MagicaClothColliderBuilder
         public int BoneWeight4 = 25;
         public bool GreaterBoneWeight = true;
         public BoneTriangleExtent BoneTriangleExtent = BoneTriangleExtent.Vertex2;
-
-        public SplitProperty ShallowCopy()
-        {
-            return (SplitProperty)MemberwiseClone();
-        }
     }
 
     [Serializable]
@@ -27,23 +22,14 @@ namespace MagicaClothColliderBuilder
         public Vector3 MinThickness = new Vector3(0.01f, 0.01f, 0.01f);
         public Bool3 OptimizeRotation = new Bool3(true, true, true);
 
-        // Obsolete properties are left for potential future use but are not exposed by default.
         [HideInInspector] public ElementType ScaleElementType = ElementType.X;
         [HideInInspector] public ElementType MinThicknessElementType = ElementType.X;
         [HideInInspector] public ElementType OptimizeRotationElementType = ElementType.X;
         [HideInInspector] public Vector3 Offset = Vector3.zero;
         [HideInInspector] public Vector3 ThicknessA = Vector3.zero;
         [HideInInspector] public Vector3 ThicknessB = Vector3.zero;
-
-        public ReducerProperty ShallowCopy()
-        {
-            return (ReducerProperty)MemberwiseClone();
-        }
     }
 
-    /// <summary>
-    /// Holds the combined properties for a single generation job.
-    /// </summary>
     public class SABoneColliderProperty
     {
         public SplitProperty SplitProperty = new();
@@ -60,5 +46,18 @@ namespace MagicaClothColliderBuilder
     {
         X,
         XYZ,
+    }
+
+    public enum BoneWeightType
+    {
+        Bone2,
+        Bone4,
+    }
+
+    public enum BoneTriangleExtent
+    {
+        Disable,
+        Vertex2,
+        Vertex1,
     }
 }

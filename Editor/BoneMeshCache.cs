@@ -6,114 +6,125 @@ namespace MagicaClothColliderBuilder
 {
     public class BoneMeshCache
     {
-        private int m_meshVertexCount;
-        private int m_meshTriangleCount;
-        private int m_meshBoneCount;
-        private Matrix4x4[] m_meshBindPoses;
-        private Transform[] m_meshBones;
-        private BoneWeight[] m_meshBoneWeights;
-        private Vector3[] m_meshVertices;
-        private int[] m_meshTriangles;
+        private int m_MeshVertexCount;
+        private int m_MeshTriangleCount;
+        private int m_MeshBoneCount;
+        private Matrix4x4[] m_MeshBindPoses;
+        private Transform[] m_MeshBones;
+        private BoneWeight[] m_MeshBoneWeights;
+        private Vector3[] m_MeshVertices;
+        private int[] m_MeshTriangles;
+        private bool[] m_TargetBones;
+        private bool[] m_TargetVertices;
+        private bool[] m_PassedVertices;
+        private bool[] m_ProcessedVertices;
+        private int[] m_RedirectIndices;
+        private int[] m_BoneIndices;
 
-        // for Work
-        private bool[] m_targetBones;
-        private bool[] m_targetVertices;
-        private bool[] m_passedVertices;
-        private bool[] m_processedVertices;
-        private int[] m_redirectIndices;
-        private int[] m_boneIndices;
+        public int MeshVertexCount => m_MeshVertexCount;
 
-        public int MeshVertexCount => m_meshVertexCount;
-        public int MeshTriangleCount => m_meshTriangleCount;
-        public int MeshBoneCount => m_meshBoneCount;
-        public Matrix4x4[] MeshBindPoses => m_meshBindPoses;
-        public Transform[] MeshBones => m_meshBones;
-        public BoneWeight[] MeshBoneWeights => m_meshBoneWeights;
-        public Vector3[] MeshVertices => m_meshVertices;
-        public int[] MeshTriangles => m_meshTriangles;
-        public bool[] TargetBones => m_targetBones;
-        public bool[] TargetVertices => m_targetVertices;
-        public bool[] PassedVertices => m_passedVertices;
-        public bool[] ProcessedVertices => m_processedVertices;
-        public int[] RedirectIndices => m_redirectIndices;
-        public int[] BoneIndices => m_boneIndices;
+        public int MeshTriangleCount => m_MeshTriangleCount;
+
+        public int MeshBoneCount => m_MeshBoneCount;
+
+        public Matrix4x4[] MeshBindPoses => m_MeshBindPoses;
+
+        public Transform[] MeshBones => m_MeshBones;
+
+        public BoneWeight[] MeshBoneWeights => m_MeshBoneWeights;
+
+        public Vector3[] MeshVertices => m_MeshVertices;
+
+        public int[] MeshTriangles => m_MeshTriangles;
+
+        public bool[] TargetBones => m_TargetBones;
+
+        public bool[] TargetVertices => m_TargetVertices;
+
+        public bool[] PassedVertices => m_PassedVertices;
+
+        public bool[] ProcessedVertices => m_ProcessedVertices;
+
+        public int[] RedirectIndices => m_RedirectIndices;
+
+        public int[] BoneIndices => m_BoneIndices;
 
         public void Process(GameObject gameObject)
         {
-            SkinnedMeshRenderer[] skinnedMeshRenderers = GetSkinnedMeshRenderers(gameObject);
-            if (skinnedMeshRenderers == null || skinnedMeshRenderers.Length == 0)
-            {
-                Debug.LogError("Not found SkinnedMeshRenderer.");
-                return;
-            }
+            var skinnedMeshRenderers = GetSkinnedMeshRenderers(gameObject);
+
+            if (skinnedMeshRenderers == null || skinnedMeshRenderers.Length == 0) return;
 
             foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
             {
                 if (skinnedMeshRenderer.bones != null)
                 {
-                    BoneWeight[] boneWeights = skinnedMeshRenderer.sharedMesh.boneWeights;
-                    if (boneWeights == null || boneWeights.Length == 0)
-                    {
-                        continue;
-                    }
-                    m_meshBoneCount += skinnedMeshRenderer.bones.Length;
-                    m_meshVertexCount += skinnedMeshRenderer.sharedMesh.vertexCount;
-                    m_meshTriangleCount += skinnedMeshRenderer.sharedMesh.triangles.Length;
+                    var boneWeights = skinnedMeshRenderer.sharedMesh.boneWeights;
+
+                    if (boneWeights == null || boneWeights.Length == 0) continue;
+
+                    m_MeshBoneCount += skinnedMeshRenderer.bones.Length;
+                    m_MeshVertexCount += skinnedMeshRenderer.sharedMesh.vertexCount;
+                    m_MeshTriangleCount += skinnedMeshRenderer.sharedMesh.triangles.Length;
                 }
             }
 
-            m_meshBones = new Transform[m_meshBoneCount];
-            m_meshBindPoses = new Matrix4x4[m_meshBoneCount];
-            m_meshBoneWeights = new BoneWeight[m_meshVertexCount];
-            m_meshVertices = new Vector3[m_meshVertexCount];
-            m_meshTriangles = new int[m_meshTriangleCount];
+            m_MeshBones = new Transform[m_MeshBoneCount];
+            m_MeshBindPoses = new Matrix4x4[m_MeshBoneCount];
+            m_MeshBoneWeights = new BoneWeight[m_MeshVertexCount];
+            m_MeshVertices = new Vector3[m_MeshVertexCount];
+            m_MeshTriangles = new int[m_MeshTriangleCount];
+            m_TargetBones = new bool[m_MeshBoneCount];
+            m_TargetVertices = new bool[m_MeshVertexCount];
+            m_PassedVertices = new bool[m_MeshVertexCount];
+            m_ProcessedVertices = new bool[m_MeshVertexCount];
+            m_RedirectIndices = new int[m_MeshVertexCount];
+            m_BoneIndices = new int[m_MeshVertexCount];
 
-            // for Work
-            m_targetBones = new bool[m_meshBoneCount];
-            m_targetVertices = new bool[m_meshVertexCount];
-            m_passedVertices = new bool[m_meshVertexCount];
-            m_processedVertices = new bool[m_meshVertexCount];
-            m_redirectIndices = new int[m_meshVertexCount];
-            m_boneIndices = new int[m_meshVertexCount];
-            for (int i = 0; i < m_boneIndices.Length; ++i)
+            for (int i = 0; i < m_BoneIndices.Length; ++i)
             {
-                m_boneIndices[i] = -1;
+                m_BoneIndices[i] = -1;
             }
 
             int meshRendererBoneIndex = 0;
             int meshRendererVertexIndex = 0;
             int meshRendererTriangleIndex = 0;
+
             foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
             {
                 if (skinnedMeshRenderer.bones != null)
                 {
-                    Transform[] bones = skinnedMeshRenderer.bones;
-                    Matrix4x4[] bindPoses = skinnedMeshRenderer.sharedMesh.bindposes;
-                    BoneWeight[] boneWeights = skinnedMeshRenderer.sharedMesh.boneWeights;
-                    Vector3[] vertices = skinnedMeshRenderer.sharedMesh.vertices;
-                    int[] triangles = skinnedMeshRenderer.sharedMesh.triangles;
-                    if (boneWeights == null || boneWeights.Length == 0)
-                    {
-                        continue;
-                    }
+                    var bones = skinnedMeshRenderer.bones;
+                    var bindPoses = skinnedMeshRenderer.sharedMesh.bindposes;
+                    var boneWeights = skinnedMeshRenderer.sharedMesh.boneWeights;
+                    var vertices = skinnedMeshRenderer.sharedMesh.vertices;
+                    var triangles = skinnedMeshRenderer.sharedMesh.triangles;
+
+                    if (boneWeights == null || boneWeights.Length == 0) continue;
+
                     for (int i = 0; i < bones.Length; ++i)
                     {
-                        m_meshBones[meshRendererBoneIndex + i] = bones[i];
-                        m_meshBindPoses[meshRendererBoneIndex + i] = bindPoses[i];
+                        m_MeshBones[meshRendererBoneIndex + i] = bones[i];
+                        m_MeshBindPoses[meshRendererBoneIndex + i] = bindPoses[i];
                     }
+
                     for (int i = 0; i < vertices.Length; ++i)
                     {
-                        m_meshVertices[meshRendererVertexIndex + i] = vertices[i];
-                        BoneWeight boneWeight = boneWeights[i];
+                        m_MeshVertices[meshRendererVertexIndex + i] = vertices[i];
+
+                        var boneWeight = boneWeights[i];
+
                         if (boneWeight.boneIndex0 >= 0) boneWeight.boneIndex0 += meshRendererBoneIndex;
                         if (boneWeight.boneIndex1 >= 0) boneWeight.boneIndex1 += meshRendererBoneIndex;
                         if (boneWeight.boneIndex2 >= 0) boneWeight.boneIndex2 += meshRendererBoneIndex;
                         if (boneWeight.boneIndex3 >= 0) boneWeight.boneIndex3 += meshRendererBoneIndex;
-                        m_meshBoneWeights[meshRendererVertexIndex + i] = boneWeight;
+
+                        m_MeshBoneWeights[meshRendererVertexIndex + i] = boneWeight;
                     }
+
                     for (int i = 0; i < triangles.Length; ++i)
                     {
-                        m_meshTriangles[meshRendererTriangleIndex + i] = triangles[i] + meshRendererVertexIndex;
+                        m_MeshTriangles[meshRendererTriangleIndex + i] = triangles[i] + meshRendererVertexIndex;
                     }
 
                     meshRendererBoneIndex += bones.Length;
@@ -125,45 +136,44 @@ namespace MagicaClothColliderBuilder
 
         public void CleanWork()
         {
-            Array.Clear(m_targetBones, 0, m_targetBones.Length);
-            Array.Clear(m_targetVertices, 0, m_targetVertices.Length);
-            Array.Clear(m_passedVertices, 0, m_passedVertices.Length);
-            Array.Clear(m_processedVertices, 0, m_processedVertices.Length);
-            Array.Clear(m_redirectIndices, 0, m_redirectIndices.Length);
-            for (int i = 0; i < m_boneIndices.Length; ++i)
+            Array.Clear(m_TargetBones, 0, m_TargetBones.Length);
+            Array.Clear(m_TargetVertices, 0, m_TargetVertices.Length);
+            Array.Clear(m_PassedVertices, 0, m_PassedVertices.Length);
+            Array.Clear(m_ProcessedVertices, 0, m_ProcessedVertices.Length);
+            Array.Clear(m_RedirectIndices, 0, m_RedirectIndices.Length);
+
+            for (int i = 0; i < m_BoneIndices.Length; ++i)
             {
-                m_boneIndices[i] = -1;
+                m_BoneIndices[i] = -1;
             }
         }
 
-        private static SkinnedMeshRenderer[] GetSkinnedMeshRenderers(GameObject go)
+        private static SkinnedMeshRenderer[] GetSkinnedMeshRenderers(GameObject gameObject)
         {
-            if (go == null)
-            {
-                return null;
-            }
+            if (gameObject == null) return null;
 
-            List<SkinnedMeshRenderer> skinnedMeshRenderers = new List<SkinnedMeshRenderer>();
-            SkinnedMeshRenderer skinnedMeshRenderer = go.GetComponent<SkinnedMeshRenderer>();
+            var skinnedMeshRenderers = new List<SkinnedMeshRenderer>();
+            var skinnedMeshRenderer = gameObject.GetComponent<SkinnedMeshRenderer>();
+
             if (skinnedMeshRenderer != null)
             {
                 skinnedMeshRenderers.Add(skinnedMeshRenderer);
             }
 
-            GetSkinnedMeshRenderersInChildren(skinnedMeshRenderers, go);
+            GetSkinnedMeshRenderersInChildren(skinnedMeshRenderers, gameObject);
+
             return skinnedMeshRenderers.ToArray();
         }
 
-        private static void GetSkinnedMeshRenderersInChildren(List<SkinnedMeshRenderer> skinnedMeshRenderers, GameObject go)
+        private static void GetSkinnedMeshRenderersInChildren(List<SkinnedMeshRenderer> skinnedMeshRenderers, GameObject gameObject)
         {
-            if (skinnedMeshRenderers != null && go != null)
+            if (skinnedMeshRenderers != null && gameObject != null)
             {
-                foreach (Transform childTransform in go.transform)
+                foreach (Transform childTransform in gameObject.transform)
                 {
                     if (childTransform.gameObject.GetComponent<Animator>() == null)
                     {
-                        SkinnedMeshRenderer skinnedMeshRenderer = childTransform.gameObject.GetComponent<SkinnedMeshRenderer>();
-                        if (skinnedMeshRenderer != null)
+                        if (childTransform.gameObject.TryGetComponent<SkinnedMeshRenderer>(out var skinnedMeshRenderer))
                         {
                             skinnedMeshRenderers.Add(skinnedMeshRenderer);
                         }
