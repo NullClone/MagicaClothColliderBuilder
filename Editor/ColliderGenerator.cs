@@ -27,6 +27,12 @@ namespace MagicaClothColliderBuilder
                 return;
             }
 
+            if (m_AvatarRoot.GetComponentsInChildren<MagicaCapsuleCollider>(true).Length > 0)
+            {
+                Debug.LogWarning("Generation skipped: existing MagicaCapsuleCollider components were found. Please cleanup first if you want to regenerate.");
+                return;
+            }
+
             var bonesToProcess = CollectHumanBones();
 
             if (bonesToProcess.Count == 0)
@@ -119,6 +125,7 @@ namespace MagicaClothColliderBuilder
                 float sizeY = Mathf.Abs(result.BoxB.y - result.BoxA.y);
                 float sizeZ = Mathf.Abs(result.BoxB.z - result.BoxA.z);
                 var center = FuzzyZero((result.BoxA + result.BoxB) / 2.0f) + result.Center;
+                bool hasDirectionHint = TryGetChildDirectionHint(job.TargetBone.transform, out Vector3 directionHint);
 
                 var colliderGo = new GameObject("MagicaClothCollider");
                 colliderGo.transform.parent = job.TargetBone.transform;
@@ -133,7 +140,35 @@ namespace MagicaClothColliderBuilder
                 int direction;
                 Vector3 axisVec;
 
-                if (sizeX > sizeY && sizeX > sizeZ)
+                if (hasDirectionHint)
+                {
+                    float absX = Mathf.Abs(directionHint.x);
+                    float absY = Mathf.Abs(directionHint.y);
+                    float absZ = Mathf.Abs(directionHint.z);
+
+                    if (absX >= absY && absX >= absZ)
+                    {
+                        capsule.direction = MagicaCapsuleCollider.Direction.X;
+                        length = sizeX;
+                        direction = 0;
+                        axisVec = Vector3.right;
+                    }
+                    else if (absY >= absX && absY >= absZ)
+                    {
+                        capsule.direction = MagicaCapsuleCollider.Direction.Y;
+                        length = sizeY;
+                        direction = 1;
+                        axisVec = Vector3.up;
+                    }
+                    else
+                    {
+                        capsule.direction = MagicaCapsuleCollider.Direction.Z;
+                        length = sizeZ;
+                        direction = 2;
+                        axisVec = Vector3.forward;
+                    }
+                }
+                else if (sizeX > sizeY && sizeX > sizeZ)
                 {
                     capsule.direction = MagicaCapsuleCollider.Direction.X;
                     length = sizeX;
@@ -161,9 +196,72 @@ namespace MagicaClothColliderBuilder
                 Vector3 posMax = center + (0.5f * length * axisVec);
 
                 capsule.SetSize(radiusAtMin, radiusAtMax, length);
-                capsule.reverseDirection = posMin.sqrMagnitude < posMax.sqrMagnitude;
+                capsule.reverseDirection = DetermineReverseDirection(job.TargetBone.transform, posMin, posMax, hasDirectionHint, directionHint, direction);
                 capsule.UpdateParameters();
             }
+        }
+
+        private static bool DetermineReverseDirection(
+            Transform boneTransform,
+            Vector3 endpointMin,
+            Vector3 endpointMax,
+            bool hasDirectionHint,
+            Vector3 directionHint,
+            int direction)
+        {
+            if (hasDirectionHint)
+            {
+                if (direction == 0)
+                {
+                    return directionHint.x < 0.0f;
+                }
+
+                if (direction == 1)
+                {
+                    return directionHint.y < 0.0f;
+                }
+
+                return directionHint.z < 0.0f;
+            }
+
+            if (boneTransform != null && boneTransform.childCount > 0)
+            {
+                Vector3 averageChildPosition = Vector3.zero;
+
+                for (int i = 0; i < boneTransform.childCount; ++i)
+                {
+                    averageChildPosition += boneTransform.GetChild(i).localPosition;
+                }
+
+                averageChildPosition /= boneTransform.childCount;
+
+                if (averageChildPosition.sqrMagnitude > 1.0e-8f)
+                {
+                    float distanceToMin = (averageChildPosition - endpointMin).sqrMagnitude;
+                    float distanceToMax = (averageChildPosition - endpointMax).sqrMagnitude;
+                    return distanceToMin < distanceToMax;
+                }
+            }
+
+            return endpointMin.sqrMagnitude < endpointMax.sqrMagnitude;
+        }
+
+        private static bool TryGetChildDirectionHint(Transform boneTransform, out Vector3 directionHint)
+        {
+            directionHint = Vector3.zero;
+
+            if (boneTransform == null || boneTransform.childCount == 0)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < boneTransform.childCount; ++i)
+            {
+                directionHint += boneTransform.GetChild(i).localPosition;
+            }
+
+            directionHint /= boneTransform.childCount;
+            return directionHint.sqrMagnitude > 1.0e-8f;
         }
 
         private void CreateDefaultColliderForBone(Transform boneTransform)

@@ -43,6 +43,8 @@ namespace MagicaClothColliderBuilder
 
         public Quaternion Rotation { set { m_RotationEnabled = true; m_Rotation = value; } }
 
+        public Bool3 OptimizeRotation { set { m_OptimizeRotation = value; } }
+
         public Vector3 Scale { set { m_Scale = value; } }
 
         public Vector3 Offset { set { m_Offset = value; } }
