@@ -49,6 +49,7 @@ namespace MagicaClothColliderBuilder
                     LineList = TriangleToLineIndices(Triangles),
                     Scale = Property.ReducerProperty.Scale,
                     MinThickness = Property.ReducerProperty.MinThickness,
+                    OptimizeRotation = Property.ReducerProperty.OptimizeRotation,
                     Offset = Property.ReducerProperty.Offset,
                     ThicknessA = Property.ReducerProperty.ThicknessA,
                     ThicknessB = Property.ReducerProperty.ThicknessB,

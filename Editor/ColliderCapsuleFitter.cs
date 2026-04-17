@@ -96,17 +96,19 @@ namespace MagicaClothColliderBuilder
 
         private static bool TryFitLimbCapsule(ColliderGenerationJob job, Vector3 childHint, BoneFitRole boneRole, ref CapsuleFitResult fitResult)
         {
+            LimbFitProperty limbSettings = job.Property.LimbFitProperty;
             Vector3 limbAxis = childHint.normalized;
-            float jointDistance = Mathf.Max(childHint.magnitude, 0.02f);
+            float jointDistance = Mathf.Max(childHint.magnitude, limbSettings.MinJointDistance);
             Quaternion limbRotation = Quaternion.FromToRotation(Vector3.up, limbAxis);
 
             if (!TryEvaluateCapsuleFitOnYAxis(
                 job.Vertices,
                 Quaternion.Inverse(limbRotation),
-                job.Property.ReducerProperty.FitType == FitType.Outer ? 92.0f : 70.0f,
+                limbSettings.RadiusPercentile,
                 jointDistance,
                 boneRole,
                 true,
+                job.Property,
                 out Vector3 _,
                 out float _,
                 out float limbStartRadius,
@@ -115,6 +117,9 @@ namespace MagicaClothColliderBuilder
             {
                 return false;
             }
+
+            limbStartRadius *= limbSettings.RadiusScale;
+            limbEndRadius *= limbSettings.RadiusScale;
 
             // MagicaCapsuleCollider length behaves as the full end-to-end span.
             // To place the cylinder-cap seam centers on the bone origin and child bone position,
@@ -136,7 +141,7 @@ namespace MagicaClothColliderBuilder
         {
             fitResult = default;
 
-            float fitPercentile = GetFitPercentile(job.Property.ReducerProperty.FitType, boneRole);
+            float fitPercentile = GetFitPercentile(job.Property.GenericFitProperty, boneRole);
             var axisCandidates = hasChildHint && childHint.sqrMagnitude > 1.0e-8f && !IsBodyRole(boneRole)
                 ? BuildLimbAxisCandidates(vertices, childHint, hasParentHint, parentHint)
                 : BuildAxisCandidates(vertices, hasChildHint, childHint, hasParentHint, parentHint);
@@ -183,6 +188,7 @@ namespace MagicaClothColliderBuilder
                     boneLengthHint,
                     boneRole,
                     false,
+                    job.Property,
                     out Vector3 candidateCenter,
                     out float candidateLength,
                     out float candidateStartRadius,
@@ -228,31 +234,24 @@ namespace MagicaClothColliderBuilder
             return true;
         }
 
-        private static float GetFitPercentile(FitType fitType, BoneFitRole boneRole)
+        private static float GetFitPercentile(GenericFitProperty settings, BoneFitRole boneRole)
         {
-            float fitPercentile = fitType == FitType.Outer ? 92.0f : 70.0f;
-
-            if (fitType != FitType.Outer)
-            {
-                return fitPercentile;
-            }
-
             if (boneRole == BoneFitRole.Hips)
             {
-                return 86.0f;
+                return settings.HipsFitPercentile;
             }
 
             if (boneRole == BoneFitRole.Spine || boneRole == BoneFitRole.Chest)
             {
-                return 88.0f;
+                return settings.SpineChestFitPercentile;
             }
 
             if (boneRole == BoneFitRole.UpperChest)
             {
-                return 95.0f;
+                return settings.UpperChestFitPercentile;
             }
 
-            return fitPercentile;
+            return settings.DefaultFitPercentile;
         }
 
         private static bool TryFitHorizontalBodyCapsule(ColliderGenerationJob job, BoneFitRole boneRole, out CapsuleFitResult fitResult)
@@ -267,8 +266,21 @@ namespace MagicaClothColliderBuilder
             }
 
             Transform boneTransform = job.TargetBone.transform;
-            Vector3 worldHorizontal = boneTransform.root != null ? boneTransform.root.right : Vector3.right;
+            BodyFitProperty bodySettings = job.Property.BodyFitProperty;
+            Vector3 worldHorizontal = bodySettings.HorizontalAxis == BodyHorizontalAxis.RootForward
+                ? (boneTransform.root != null ? boneTransform.root.forward : Vector3.forward)
+                : (boneTransform.root != null ? boneTransform.root.right : Vector3.right);
             Vector3 localHorizontal = boneTransform.InverseTransformDirection(worldHorizontal);
+
+            if (boneRole == BoneFitRole.Hips && bodySettings.HipsProjectAxisToSpinePlane)
+            {
+                Vector3 localSpineUp = GetHipsSpineUpAxisLocal(boneTransform);
+
+                if (localSpineUp.sqrMagnitude > 1.0e-8f)
+                {
+                    localHorizontal = Vector3.ProjectOnPlane(localHorizontal, localSpineUp);
+                }
+            }
 
             if (localHorizontal.sqrMagnitude <= 1.0e-8f)
             {
@@ -289,11 +301,22 @@ namespace MagicaClothColliderBuilder
                 radialValues.Add(Mathf.Sqrt((rv.x * rv.x) + (rv.z * rv.z)));
             }
 
-            float halfLength = Percentile(absYValues, GetHorizontalLengthPercentile(boneRole));
-            float length = Mathf.Max(0.03f, halfLength * 2.0f);
-            float radius = Percentile(radialValues, job.Property.ReducerProperty.FitType == FitType.Outer ? 90.0f : 68.0f);
-            radius *= GetHorizontalRadiusScale(boneRole);
-            radius = Mathf.Clamp(radius, 0.008f, Mathf.Max(0.015f, length * 0.65f));
+            float halfLength = Percentile(absYValues, GetHorizontalLengthPercentile(bodySettings, boneRole));
+            float length = Mathf.Max(bodySettings.MinLength, halfLength * 2.0f);
+
+            if (boneRole == BoneFitRole.Hips)
+            {
+                float hipsSpineDistance = GetHipsSpineDistanceLocal(boneTransform);
+                float maxByBone = hipsSpineDistance > 1.0e-6f
+                    ? Mathf.Max(bodySettings.MinLength, hipsSpineDistance * bodySettings.HipsMaxLengthBySpineDistance)
+                    : bodySettings.HipsMaxLength;
+                float hipsMaxLength = Mathf.Max(bodySettings.MinLength, Mathf.Min(bodySettings.HipsMaxLength, maxByBone));
+                length = Mathf.Min(length, hipsMaxLength);
+            }
+
+            float radius = Percentile(radialValues, bodySettings.RadiusPercentile);
+            radius *= GetHorizontalRadiusScale(bodySettings, boneRole);
+            radius = Mathf.Clamp(radius, bodySettings.MinRadius, Mathf.Max(bodySettings.MinRadius, length * bodySettings.MaxRadiusByLengthRatio));
 
             fitResult = new CapsuleFitResult
             {
@@ -308,44 +331,94 @@ namespace MagicaClothColliderBuilder
             return true;
         }
 
-        private static float GetHorizontalLengthPercentile(BoneFitRole boneRole)
+        private static Vector3 GetHipsSpineUpAxisLocal(Transform hipsTransform)
         {
-            if (boneRole == BoneFitRole.Hips)
+            Animator animator = hipsTransform.GetComponentInParent<Animator>();
+
+            if (animator == null || animator.avatar == null || !animator.avatar.isHuman)
             {
-                return 90.0f;
+                return Vector3.zero;
             }
 
-            if (boneRole == BoneFitRole.Spine)
+            Transform spine = animator.GetBoneTransform(HumanBodyBones.Spine);
+
+            if (spine == null)
             {
-                return 84.0f;
+                return Vector3.zero;
             }
 
-            if (boneRole == BoneFitRole.UpperChest)
-            {
-                return 88.0f;
-            }
-
-            return 86.0f;
+            Vector3 localSpine = hipsTransform.InverseTransformPoint(spine.position);
+            return localSpine.normalized;
         }
 
-        private static float GetHorizontalRadiusScale(BoneFitRole boneRole)
+        private static float GetHipsSpineDistanceLocal(Transform hipsTransform)
+        {
+            Animator animator = hipsTransform.GetComponentInParent<Animator>();
+
+            if (animator == null || animator.avatar == null || !animator.avatar.isHuman)
+            {
+                return 0.0f;
+            }
+
+            Transform spine = animator.GetBoneTransform(HumanBodyBones.Spine);
+
+            if (spine == null)
+            {
+                return 0.0f;
+            }
+
+            Vector3 localSpine = hipsTransform.InverseTransformPoint(spine.position);
+            return localSpine.magnitude;
+        }
+
+        private static float GetHorizontalLengthPercentile(BodyFitProperty settings, BoneFitRole boneRole)
         {
             if (boneRole == BoneFitRole.Hips)
             {
-                return 1.08f;
+                return settings.HipsLengthPercentile;
             }
 
             if (boneRole == BoneFitRole.Spine)
             {
-                return 0.95f;
+                return settings.SpineLengthPercentile;
+            }
+
+            if (boneRole == BoneFitRole.Chest)
+            {
+                return settings.ChestLengthPercentile;
             }
 
             if (boneRole == BoneFitRole.UpperChest)
             {
-                return 1.12f;
+                return settings.UpperChestLengthPercentile;
             }
 
-            return 1.0f;
+            return settings.ChestLengthPercentile;
+        }
+
+        private static float GetHorizontalRadiusScale(BodyFitProperty settings, BoneFitRole boneRole)
+        {
+            if (boneRole == BoneFitRole.Hips)
+            {
+                return settings.HipsRadiusScale;
+            }
+
+            if (boneRole == BoneFitRole.Spine)
+            {
+                return settings.SpineRadiusScale;
+            }
+
+            if (boneRole == BoneFitRole.Chest)
+            {
+                return settings.ChestRadiusScale;
+            }
+
+            if (boneRole == BoneFitRole.UpperChest)
+            {
+                return settings.UpperChestRadiusScale;
+            }
+
+            return settings.ChestRadiusScale;
         }
 
         private static List<Vector3> BuildLimbAxisCandidates(Vector3[] vertices, Vector3 childHint, bool hasParentHint, Vector3 parentHint)
@@ -469,12 +542,12 @@ namespace MagicaClothColliderBuilder
             return unique;
         }
 
-        private static bool TryEvaluateCapsuleFitOnYAxis(Vector3[] vertices, Quaternion inverseRotation, float fitPercentile, float boneLengthHint, BoneFitRole boneRole, bool useBoneAxisCenter, out Vector3 center, out float length, out float startRadius, out float endRadius, out float score)
+        private static bool TryEvaluateCapsuleFitOnYAxis(Vector3[] vertices, Quaternion inverseRotation, float fitPercentile, float boneLengthHint, BoneFitRole boneRole, bool useBoneAxisCenter, SABoneColliderProperty property, out Vector3 center, out float length, out float startRadius, out float endRadius, out float score)
         {
             center = Vector3.zero;
-            length = 0.02f;
-            startRadius = 0.01f;
-            endRadius = 0.01f;
+            length = property.GenericFitProperty.MinLength;
+            startRadius = property.GenericFitProperty.MinRadius;
+            endRadius = property.GenericFitProperty.MinRadius;
             score = float.MaxValue;
 
             if (vertices == null || vertices.Length < 4)
@@ -505,7 +578,7 @@ namespace MagicaClothColliderBuilder
             if (useBoneAxisCenter)
             {
                 minY = 0.0f;
-                maxY = Mathf.Max(boneLengthHint, 0.02f);
+                maxY = Mathf.Max(boneLengthHint, property.LimbFitProperty.MinJointDistance);
                 length = maxY;
                 centerX = 0.0f;
                 centerZ = 0.0f;
@@ -513,16 +586,16 @@ namespace MagicaClothColliderBuilder
             }
             else
             {
-                GetPercentileBounds(yValues, boneLengthHint, boneRole, out minY, out maxY, out length);
+                GetPercentileBounds(yValues, boneLengthHint, boneRole, property.GenericFitProperty, out minY, out maxY, out length);
                 centerX = Percentile(xValues, 50.0f);
-                centerY = Mathf.Lerp(minY, maxY, GetCenterYRatio(boneRole));
+                centerY = Mathf.Lerp(minY, maxY, GetCenterYRatio(property.GenericFitProperty, boneRole));
                 centerZ = Percentile(zValues, 50.0f);
             }
 
             center = new Vector3(centerX, centerY, centerZ);
 
             float endWindow = Mathf.Max(length * 0.22f, 0.004f);
-            float leakMargin = Mathf.Clamp(length * 0.08f, 0.004f, 0.012f);
+            float leakMargin = Mathf.Clamp(length * property.LimbFitProperty.LeakMarginScale, property.LimbFitProperty.LeakMarginMin, property.LimbFitProperty.LeakMarginMax);
             float yLeakMin = useBoneAxisCenter ? (minY - leakMargin) : float.NegativeInfinity;
             float yLeakMax = useBoneAxisCenter ? (maxY + leakMargin) : float.PositiveInfinity;
 
@@ -568,17 +641,19 @@ namespace MagicaClothColliderBuilder
             startRadius = Percentile(radiiNearPos, fitPercentile);
             endRadius = Percentile(radiiNearNeg, fitPercentile);
 
-            float roleRadiusScale = GetRoleRadiusScale(boneRole);
+            float roleRadiusScale = GetRoleRadiusScale(property.GenericFitProperty, boneRole);
             startRadius *= roleRadiusScale;
             endRadius *= roleRadiusScale;
 
-            float maxAllowedRadius = Mathf.Min(Mathf.Max(0.02f, boneLengthHint * 0.7f), Mathf.Max(0.01f, length * 0.7f));
-            startRadius = Mathf.Clamp(startRadius, 0.003f, maxAllowedRadius);
-            endRadius = Mathf.Clamp(endRadius, 0.003f, maxAllowedRadius);
+            float maxAllowedRadius = Mathf.Min(
+                Mathf.Max(0.02f, boneLengthHint * property.GenericFitProperty.MaxRadiusByBoneRatio),
+                Mathf.Max(0.01f, length * property.GenericFitProperty.MaxRadiusByLengthRatio));
+            startRadius = Mathf.Clamp(startRadius, property.GenericFitProperty.MinRadius, maxAllowedRadius);
+            endRadius = Mathf.Clamp(endRadius, property.GenericFitProperty.MinRadius, maxAllowedRadius);
 
             if (boneRole == BoneFitRole.UpperChest)
             {
-                float minUpperChestRadius = Mathf.Max(0.012f, length * 0.18f);
+                float minUpperChestRadius = Mathf.Max(property.GenericFitProperty.UpperChestMinRadius, length * property.GenericFitProperty.UpperChestMinRadiusByLengthRatio);
                 startRadius = Mathf.Max(startRadius, minUpperChestRadius);
                 endRadius = Mathf.Max(endRadius, minUpperChestRadius * 0.95f);
             }
@@ -587,25 +662,25 @@ namespace MagicaClothColliderBuilder
             return true;
         }
 
-        private static void GetPercentileBounds(List<float> yValues, float boneLengthHint, BoneFitRole boneRole, out float minY, out float maxY, out float length)
+        private static void GetPercentileBounds(List<float> yValues, float boneLengthHint, BoneFitRole boneRole, GenericFitProperty settings, out float minY, out float maxY, out float length)
         {
-            float lowerPercentile = 2.0f;
-            float upperPercentile = 98.0f;
+            float lowerPercentile = settings.DefaultLowerPercentile;
+            float upperPercentile = settings.DefaultUpperPercentile;
 
             if (boneRole == BoneFitRole.Hips)
             {
-                lowerPercentile = 35.0f;
-                upperPercentile = 96.0f;
+                lowerPercentile = settings.HipsLowerPercentile;
+                upperPercentile = settings.HipsUpperPercentile;
             }
             else if (boneRole == BoneFitRole.Spine || boneRole == BoneFitRole.Chest)
             {
-                lowerPercentile = 8.0f;
-                upperPercentile = 98.0f;
+                lowerPercentile = settings.SpineChestLowerPercentile;
+                upperPercentile = settings.SpineChestUpperPercentile;
             }
             else if (boneRole == BoneFitRole.UpperChest)
             {
-                lowerPercentile = 15.0f;
-                upperPercentile = 98.0f;
+                lowerPercentile = settings.UpperChestLowerPercentile;
+                upperPercentile = settings.UpperChestUpperPercentile;
             }
 
             minY = Percentile(yValues, lowerPercentile);
@@ -617,17 +692,17 @@ namespace MagicaClothColliderBuilder
                 maxY = Percentile(yValues, 100.0f);
             }
 
-            length = Mathf.Max(0.02f, maxY - minY);
+            length = Mathf.Max(settings.MinLength, maxY - minY);
 
             if (boneRole == BoneFitRole.Hips)
             {
-                length = Mathf.Min(length, Mathf.Max(0.045f, boneLengthHint * 1.35f));
+                length = Mathf.Min(length, Mathf.Max(settings.HipsMaxLength, boneLengthHint * settings.HipsMaxLengthByBoneRatio));
                 maxY = minY + length;
             }
 
             if (boneRole == BoneFitRole.UpperChest)
             {
-                float minUpperChestLength = Mathf.Max(0.03f, boneLengthHint * 0.75f);
+                float minUpperChestLength = Mathf.Max(settings.UpperChestMinLength, boneLengthHint * settings.UpperChestMinLengthByBoneRatio);
 
                 if (length < minUpperChestLength)
                 {
@@ -639,41 +714,41 @@ namespace MagicaClothColliderBuilder
             }
         }
 
-        private static float GetCenterYRatio(BoneFitRole boneRole)
+        private static float GetCenterYRatio(GenericFitProperty settings, BoneFitRole boneRole)
         {
             if (boneRole == BoneFitRole.Hips)
             {
-                return 0.68f;
+                return settings.HipsCenterYRatio;
             }
 
             if (boneRole == BoneFitRole.Spine || boneRole == BoneFitRole.Chest)
             {
-                return 0.56f;
+                return settings.SpineChestCenterYRatio;
             }
 
             if (boneRole == BoneFitRole.UpperChest)
             {
-                return 0.58f;
+                return settings.UpperChestCenterYRatio;
             }
 
             return 0.5f;
         }
 
-        private static float GetRoleRadiusScale(BoneFitRole boneRole)
+        private static float GetRoleRadiusScale(GenericFitProperty settings, BoneFitRole boneRole)
         {
             if (boneRole == BoneFitRole.Hips)
             {
-                return 0.82f;
+                return settings.HipsRadiusScale;
             }
 
             if (boneRole == BoneFitRole.Spine || boneRole == BoneFitRole.Chest)
             {
-                return 0.9f;
+                return settings.SpineChestRadiusScale;
             }
 
             if (boneRole == BoneFitRole.UpperChest)
             {
-                return 1.15f;
+                return settings.UpperChestRadiusScale;
             }
 
             return 1.0f;

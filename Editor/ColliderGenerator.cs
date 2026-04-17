@@ -18,18 +18,20 @@ namespace MagicaClothColliderBuilder
             m_Animator = avatarRoot.GetComponent<Animator>();
         }
 
-        public void Process()
+        public List<MagicaCapsuleCollider> Process()
         {
+            var createdColliders = new List<MagicaCapsuleCollider>();
+
             if (m_Animator == null || m_Animator.avatar == null || !m_Animator.avatar.isHuman)
             {
                 Debug.LogError("Animator with a valid Humanoid Avatar is required on the root object.");
-                return;
+                return createdColliders;
             }
 
             if (m_AvatarRoot.GetComponentsInChildren<MagicaCapsuleCollider>(true).Length > 0)
             {
                 Debug.LogWarning("Generation skipped: existing MagicaCapsuleCollider components were found. Please cleanup first if you want to regenerate.");
-                return;
+                return createdColliders;
             }
 
             var bonesToProcess = CollectHumanBones();
@@ -37,7 +39,7 @@ namespace MagicaClothColliderBuilder
             if (bonesToProcess.Count == 0)
             {
                 Debug.LogWarning("No human bones found to process.");
-                return;
+                return createdColliders;
             }
 
             var boneMeshCache = new BoneMeshCache();
@@ -46,7 +48,7 @@ namespace MagicaClothColliderBuilder
             if (boneMeshCache.MeshBoneCount == 0)
             {
                 Debug.LogError("No skinned meshes found to generate colliders from.");
-                return;
+                return createdColliders;
             }
 
             var generationJobs = new List<ColliderGenerationJob>();
@@ -67,14 +69,23 @@ namespace MagicaClothColliderBuilder
             }
 
             ExecuteJobs(generationJobs);
-            CreateCollidersFromResults(generationJobs);
+            createdColliders.AddRange(CreateCollidersFromResults(generationJobs));
 
-            foreach (Transform boneToFix in bonesWithoutMesh)
+            if (m_Property.GenerationProperty.CreateFallbackForBonesWithoutMesh)
             {
-                CreateDefaultColliderForBone(boneToFix);
+                foreach (Transform boneToFix in bonesWithoutMesh)
+                {
+                    var fallbackCollider = CreateDefaultColliderForBone(boneToFix);
+
+                    if (fallbackCollider != null)
+                    {
+                        createdColliders.Add(fallbackCollider);
+                    }
+                }
             }
 
-            Debug.Log($"Collider generation complete. Created {generationJobs.Count} colliders.");
+            Debug.Log($"Collider generation complete. Created {createdColliders.Count} colliders.");
+            return createdColliders;
         }
 
         private List<Transform> CollectHumanBones()
@@ -84,20 +95,67 @@ namespace MagicaClothColliderBuilder
 
             for (int i = 0; i < (int)HumanBodyBones.LastBone; i++)
             {
-                // Keep the original broad range and explicitly include UpperChest.
-                // Some rigs map UpperChest outside the previously accepted enum range.
-                if (i <= (int)HumanBodyBones.RightToes || i == (int)HumanBodyBones.UpperChest)
-                {
-                    var boneTransform = m_Animator.GetBoneTransform((HumanBodyBones)i);
+                HumanBodyBones boneId = (HumanBodyBones)i;
 
-                    if (boneTransform != null && seen.Add(boneTransform))
-                    {
-                        bones.Add(boneTransform);
-                    }
+                if (!ShouldIncludeBone(boneId))
+                {
+                    continue;
+                }
+
+                var boneTransform = m_Animator.GetBoneTransform(boneId);
+
+                if (boneTransform != null && seen.Add(boneTransform))
+                {
+                    bones.Add(boneTransform);
                 }
             }
 
             return bones;
+        }
+
+        private bool ShouldIncludeBone(HumanBodyBones boneId)
+        {
+            if (IsFingerBone(boneId))
+            {
+                return m_Property.GenerationProperty.IncludeFingers;
+            }
+
+            if (boneId == HumanBodyBones.Hips)
+            {
+                return m_Property.GenerationProperty.IncludeHips;
+            }
+
+            if (boneId == HumanBodyBones.LeftShoulder || boneId == HumanBodyBones.RightShoulder)
+            {
+                return m_Property.GenerationProperty.IncludeShoulders;
+            }
+
+            if (boneId == HumanBodyBones.LeftToes || boneId == HumanBodyBones.RightToes)
+            {
+                return m_Property.GenerationProperty.IncludeToes;
+            }
+
+            if (boneId == HumanBodyBones.UpperChest)
+            {
+                return m_Property.GenerationProperty.IncludeUpperChest;
+            }
+
+            return boneId <= HumanBodyBones.RightToes;
+        }
+
+        private static bool IsFingerBone(HumanBodyBones boneId)
+        {
+            return
+                boneId == HumanBodyBones.LeftThumbProximal || boneId == HumanBodyBones.LeftThumbIntermediate || boneId == HumanBodyBones.LeftThumbDistal ||
+                boneId == HumanBodyBones.LeftIndexProximal || boneId == HumanBodyBones.LeftIndexIntermediate || boneId == HumanBodyBones.LeftIndexDistal ||
+                boneId == HumanBodyBones.LeftMiddleProximal || boneId == HumanBodyBones.LeftMiddleIntermediate || boneId == HumanBodyBones.LeftMiddleDistal ||
+                boneId == HumanBodyBones.LeftRingProximal || boneId == HumanBodyBones.LeftRingIntermediate || boneId == HumanBodyBones.LeftRingDistal ||
+                boneId == HumanBodyBones.LeftLittleProximal || boneId == HumanBodyBones.LeftLittleIntermediate || boneId == HumanBodyBones.LeftLittleDistal ||
+                boneId == HumanBodyBones.RightThumbProximal || boneId == HumanBodyBones.RightThumbIntermediate || boneId == HumanBodyBones.RightThumbDistal ||
+                boneId == HumanBodyBones.RightIndexProximal || boneId == HumanBodyBones.RightIndexIntermediate || boneId == HumanBodyBones.RightIndexDistal ||
+                boneId == HumanBodyBones.RightMiddleProximal || boneId == HumanBodyBones.RightMiddleIntermediate || boneId == HumanBodyBones.RightMiddleDistal ||
+                boneId == HumanBodyBones.RightRingProximal || boneId == HumanBodyBones.RightRingIntermediate || boneId == HumanBodyBones.RightRingDistal ||
+                boneId == HumanBodyBones.RightLittleProximal || boneId == HumanBodyBones.RightLittleIntermediate || boneId == HumanBodyBones.RightLittleDistal;
         }
 
         private void ExecuteJobs(List<ColliderGenerationJob> jobs)
@@ -116,17 +174,26 @@ namespace MagicaClothColliderBuilder
             countdownEvent.Wait();
         }
 
-        private void CreateCollidersFromResults(List<ColliderGenerationJob> jobs)
+        private List<MagicaCapsuleCollider> CreateCollidersFromResults(List<ColliderGenerationJob> jobs)
         {
+            var createdColliders = new List<MagicaCapsuleCollider>();
+
             foreach (var job in jobs)
             {
                 if (!ColliderCapsuleFitter.TryFitCapsule(job, out var fitResult)) continue;
 
-                CreateColliderGameObject(job, fitResult);
+                var collider = CreateColliderGameObject(job, fitResult);
+
+                if (collider != null)
+                {
+                    createdColliders.Add(collider);
+                }
             }
+
+            return createdColliders;
         }
 
-        private static void CreateColliderGameObject(ColliderGenerationJob job, CapsuleFitResult fitResult)
+        private static MagicaCapsuleCollider CreateColliderGameObject(ColliderGenerationJob job, CapsuleFitResult fitResult)
         {
             var colliderGameObject = new GameObject("MagicaClothCollider");
             colliderGameObject.transform.parent = job.TargetBone.transform;
@@ -140,9 +207,10 @@ namespace MagicaClothColliderBuilder
             capsuleCollider.SetSize(fitResult.RadiusAtMin, fitResult.RadiusAtMax, fitResult.Length);
             capsuleCollider.reverseDirection = fitResult.ReverseDirection;
             capsuleCollider.UpdateParameters();
+            return capsuleCollider;
         }
 
-        private void CreateDefaultColliderForBone(Transform boneTransform)
+        private MagicaCapsuleCollider CreateDefaultColliderForBone(Transform boneTransform)
         {
             Debug.LogWarning($"Could not determine mesh shape for bone '{boneTransform.name}'. Creating a fallback collider.");
 
@@ -177,6 +245,7 @@ namespace MagicaClothColliderBuilder
                 capsuleCollider.SetSize(radius, radius, 0.01f);
                 capsuleCollider.center = Vector3.zero;
                 capsuleCollider.direction = MagicaCapsuleCollider.Direction.Y;
+                return capsuleCollider;
             }
             else
             {
@@ -192,6 +261,7 @@ namespace MagicaClothColliderBuilder
                 capsuleCollider.SetSize(defaultRadius, defaultRadius, defaultLength);
                 capsuleCollider.center = Vector3.zero;
                 capsuleCollider.direction = MagicaCapsuleCollider.Direction.Y;
+                return capsuleCollider;
             }
         }
     }
