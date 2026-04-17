@@ -90,14 +90,17 @@ namespace MagicaClothColliderBuilder
         private List<Transform> CollectHumanBones()
         {
             var bones = new List<Transform>();
+            var seen = new HashSet<Transform>();
 
             for (int i = 0; i < (int)HumanBodyBones.LastBone; i++)
             {
-                if (i <= (int)HumanBodyBones.RightToes)
+                // Keep the original broad range and explicitly include UpperChest.
+                // Some rigs map UpperChest outside the previously accepted enum range.
+                if (i <= (int)HumanBodyBones.RightToes || i == (int)HumanBodyBones.UpperChest)
                 {
                     var boneTransform = m_Animator.GetBoneTransform((HumanBodyBones)i);
 
-                    if (boneTransform != null)
+                    if (boneTransform != null && seen.Add(boneTransform))
                     {
                         bones.Add(boneTransform);
                     }
@@ -186,6 +189,23 @@ namespace MagicaClothColliderBuilder
             bool hasParentHint = TryGetParentDirectionHint(job.TargetBone.transform, out Vector3 parentHint);
             BoneFitRole boneRole = DetectBoneFitRole(job.TargetBone.transform);
             bool isLimbBone = IsLimbBone(job.TargetBone.transform);
+
+            if (IsBodyRole(boneRole))
+            {
+                if (TryFitHorizontalBodyCapsule(
+                    job,
+                    boneRole,
+                    out localRotation,
+                    out direction,
+                    out center,
+                    out length,
+                    out radiusAtMin,
+                    out radiusAtMax,
+                    out reverseDirection))
+                {
+                    return true;
+                }
+            }
 
             if (isLimbBone && hasChildHint)
             {
@@ -347,6 +367,116 @@ namespace MagicaClothColliderBuilder
             radiusAtMax = bestEndRadius;
             reverseDirection = false;
 
+            return true;
+        }
+
+        private static bool TryFitHorizontalBodyCapsule(
+            ColliderGenerationJob job,
+            BoneFitRole boneRole,
+            out Quaternion localRotation,
+            out MagicaCapsuleCollider.Direction direction,
+            out Vector3 center,
+            out float length,
+            out float radiusAtMin,
+            out float radiusAtMax,
+            out bool reverseDirection)
+        {
+            localRotation = Quaternion.identity;
+            direction = MagicaCapsuleCollider.Direction.Y;
+            center = Vector3.zero;
+            length = 0.05f;
+            radiusAtMin = 0.02f;
+            radiusAtMax = 0.02f;
+            reverseDirection = false;
+
+            var vertices = job.Vertices;
+
+            if (vertices == null || vertices.Length < 4 || job.TargetBone == null)
+            {
+                return false;
+            }
+
+            Transform boneTransform = job.TargetBone.transform;
+
+            // Fixed horizontal orientation for torso colliders.
+            Vector3 worldHorizontal = boneTransform.root != null ? boneTransform.root.right : Vector3.right;
+            Vector3 localHorizontal = boneTransform.InverseTransformDirection(worldHorizontal);
+
+            if (localHorizontal.sqrMagnitude <= 1.0e-8f)
+            {
+                localHorizontal = Vector3.right;
+            }
+
+            localHorizontal.Normalize();
+            localRotation = Quaternion.FromToRotation(Vector3.up, localHorizontal);
+            Quaternion inverseRotation = Quaternion.Inverse(localRotation);
+
+            var absYValues = new List<float>(vertices.Length);
+            var radialValues = new List<float>(vertices.Length);
+
+            for (int i = 0; i < vertices.Length; ++i)
+            {
+                Vector3 rv = inverseRotation * vertices[i];
+                absYValues.Add(Mathf.Abs(rv.y));
+                float radial = Mathf.Sqrt((rv.x * rv.x) + (rv.z * rv.z));
+                radialValues.Add(radial);
+            }
+
+            float lengthPercentile = 86.0f;
+
+            if (boneRole == BoneFitRole.Hips)
+            {
+                lengthPercentile = 90.0f;
+            }
+            else if (boneRole == BoneFitRole.Spine)
+            {
+                lengthPercentile = 84.0f;
+            }
+            else if (boneRole == BoneFitRole.Chest)
+            {
+                lengthPercentile = 86.0f;
+            }
+            else if (boneRole == BoneFitRole.UpperChest)
+            {
+                lengthPercentile = 88.0f;
+            }
+
+            float halfLength = Percentile(absYValues, lengthPercentile);
+            length = Mathf.Max(0.03f, halfLength * 2.0f);
+
+            float fitPercentile = job.Property.ReducerProperty.FitType == FitType.Outer ? 90.0f : 68.0f;
+            float radius = Percentile(radialValues, fitPercentile);
+
+            float radiusScale = 1.0f;
+
+            if (boneRole == BoneFitRole.Hips)
+            {
+                radiusScale = 1.08f;
+            }
+            else if (boneRole == BoneFitRole.Spine)
+            {
+                radiusScale = 0.95f;
+            }
+            else if (boneRole == BoneFitRole.Chest)
+            {
+                radiusScale = 1.0f;
+            }
+            else if (boneRole == BoneFitRole.UpperChest)
+            {
+                radiusScale = 1.12f;
+            }
+
+            radius *= radiusScale;
+
+            float maxRadiusByLength = Mathf.Max(0.015f, length * 0.65f);
+            radius = Mathf.Clamp(radius, 0.008f, maxRadiusByLength);
+
+            // Overlapping horizontal torso segments: center is fixed at the bone origin.
+            center = Vector3.zero;
+            radiusAtMin = radius;
+            radiusAtMax = radius;
+            direction = MagicaCapsuleCollider.Direction.Y;
+            reverseDirection = false;
             return true;
         }
 
@@ -835,6 +965,14 @@ namespace MagicaClothColliderBuilder
                 boneName.Contains("head");
 
             return !excluded;
+        }
+
+        private static bool IsBodyRole(BoneFitRole role)
+        {
+            return role == BoneFitRole.Hips ||
+                role == BoneFitRole.Spine ||
+                role == BoneFitRole.Chest ||
+                role == BoneFitRole.UpperChest;
         }
 
         private static void GetDirectionFromAxis(Vector3 axis, out MagicaCapsuleCollider.Direction direction, out int axisIndex, out Vector3 baseAxis)
