@@ -6,25 +6,8 @@ namespace MagicaClothColliderBuilder
 {
     public class MagicaClothColliderBuilderWindow : EditorWindow
     {
-        public enum ColliderFitMode
-        {
-            /// <summary>
-            /// Provides a good balance of performance and accuracy.
-            /// </summary>
-            Normal,
-            /// <summary>
-            /// Creates larger colliders, useful for ensuring coverage even if it's less precise.
-            /// </summary>
-            Loose,
-            /// <summary>
-            /// Creates smaller, more form-fitting colliders, which might be more accurate but could leave gaps.
-            /// </summary>
-            Tight,
-        }
-
         private Vector2 m_ScrollPosition;
         private GameObject m_TargetAvatarRoot;
-        private ColliderFitMode m_ColliderFitMode = ColliderFitMode.Normal;
         private bool m_ShowSplitSettings = false;
         private bool m_ShowReducerSettings = false;
         private bool m_ShowAdvancedReducerSettings;
@@ -54,11 +37,6 @@ namespace MagicaClothColliderBuilder
             window.Show();
         }
 
-        private void OnEnable()
-        {
-            ApplyPreset(m_ColliderFitMode);
-        }
-
         private void OnGUI()
         {
             EditorGUILayout.Space();
@@ -71,23 +49,6 @@ namespace MagicaClothColliderBuilder
             if (m_TargetAvatarRoot == null)
             {
                 EditorGUILayout.HelpBox("Avatar Root を指定してください。Humanoid の Animator が必要です。", MessageType.Warning);
-            }
-
-            EditorGUILayout.Space();
-
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.LabelField("Preset", EditorStyles.boldLabel);
-                EditorGUILayout.Space();
-
-                EditorGUI.BeginChangeCheck();
-
-                m_ColliderFitMode = (ColliderFitMode)EditorGUILayout.EnumPopup("Preset", m_ColliderFitMode);
-
-                if (EditorGUI.EndChangeCheck())
-                {
-                    ApplyPreset(m_ColliderFitMode);
-                }
             }
 
             EditorGUILayout.Space();
@@ -227,29 +188,6 @@ namespace MagicaClothColliderBuilder
             GUI.enabled = true;
         }
 
-        private void ApplyPreset(ColliderFitMode fitMode)
-        {
-            switch (fitMode)
-            {
-                case ColliderFitMode.Loose:
-                    m_BoneTriangleExtent = BoneTriangleExtent.Vertex2;
-                    m_FitType = FitType.Outer;
-                    m_Scale = new Vector3(1.2f, 1.2f, 1.2f);
-                    break;
-                case ColliderFitMode.Tight:
-                    m_BoneTriangleExtent = BoneTriangleExtent.Vertex1;
-                    m_FitType = FitType.Inner;
-                    m_Scale = new Vector3(0.9f, 0.9f, 0.9f);
-                    break;
-                case ColliderFitMode.Normal:
-                default:
-                    m_BoneTriangleExtent = BoneTriangleExtent.Vertex2;
-                    m_FitType = FitType.Outer;
-                    m_Scale = Vector3.one;
-                    break;
-            }
-        }
-
         private SABoneColliderProperty BuildColliderProperty()
         {
             var property = new SABoneColliderProperty();
@@ -271,13 +209,5 @@ namespace MagicaClothColliderBuilder
 
             return property;
         }
-    }
-
-    public class ReducerResult
-    {
-        public Quaternion Rotation;
-        public Vector3 Center;
-        public Vector3 BoxA;
-        public Vector3 BoxB;
     }
 }

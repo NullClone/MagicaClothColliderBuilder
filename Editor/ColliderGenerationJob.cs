@@ -15,8 +15,6 @@ namespace MagicaClothColliderBuilder
 
         public int[] Triangles { get; private set; }
 
-        public ReducerResult Result { get; private set; }
-
         private readonly BoneMeshCache m_BoneMeshCache;
 
         internal CountdownEvent m_CountdownEvent;
@@ -63,14 +61,6 @@ namespace MagicaClothColliderBuilder
                 }
 
                 reducer.Reduce();
-
-                Result = new ReducerResult
-                {
-                    Rotation = reducer.ReducedRotation,
-                    Center = reducer.ReducedCenter,
-                    BoxA = reducer.ReducedBoxA,
-                    BoxB = reducer.ReducedBoxB,
-                };
             }
             catch (Exception e)
             {
