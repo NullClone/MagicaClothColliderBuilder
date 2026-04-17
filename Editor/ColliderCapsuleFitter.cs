@@ -12,6 +12,7 @@ namespace MagicaClothColliderBuilder
         Spine,
         Chest,
         UpperChest,
+        Head,
     }
 
     public struct CapsuleFitResult
@@ -48,8 +49,19 @@ namespace MagicaClothColliderBuilder
             bool hasParentHint = TryGetParentDirectionHint(job.TargetBone.transform, out Vector3 parentHint);
             BoneFitRole boneRole = DetectBoneFitRole(job.TargetBone.transform);
             bool isLimbBone = IsLimbBone(job.TargetBone.transform);
+            bool hasHumanoidLimbHint = TryGetHumanoidLimbChildDirectionHint(job.TargetBone.transform, out Vector3 humanoidLimbHint);
+
+            if (boneRole == BoneFitRole.Head && TryFitHeadCapsule(job, out fitResult))
+            {
+                return true;
+            }
 
             if (IsBodyRole(boneRole) && TryFitHorizontalBodyCapsule(job, boneRole, out fitResult))
+            {
+                return true;
+            }
+
+            if (job.Property.LimbFitProperty.ForceFixedAxisByHumanoid && hasHumanoidLimbHint && TryFitLimbCapsule(job, humanoidLimbHint, boneRole, ref fitResult))
             {
                 return true;
             }
@@ -69,7 +81,42 @@ namespace MagicaClothColliderBuilder
                 return BoneFitRole.Default;
             }
 
+            Animator animator = boneTransform.GetComponentInParent<Animator>();
+
+            if (animator != null && animator.avatar != null && animator.avatar.isHuman)
+            {
+                if (boneTransform == animator.GetBoneTransform(HumanBodyBones.Hips))
+                {
+                    return BoneFitRole.Hips;
+                }
+
+                if (boneTransform == animator.GetBoneTransform(HumanBodyBones.Spine))
+                {
+                    return BoneFitRole.Spine;
+                }
+
+                if (boneTransform == animator.GetBoneTransform(HumanBodyBones.Chest))
+                {
+                    return BoneFitRole.Chest;
+                }
+
+                if (boneTransform == animator.GetBoneTransform(HumanBodyBones.UpperChest))
+                {
+                    return BoneFitRole.UpperChest;
+                }
+
+                if (boneTransform == animator.GetBoneTransform(HumanBodyBones.Head))
+                {
+                    return BoneFitRole.Head;
+                }
+            }
+
             string boneName = boneTransform.name.ToLowerInvariant();
+
+            if (boneName.Contains("head"))
+            {
+                return BoneFitRole.Head;
+            }
 
             if (boneName.Contains("upperchest") || boneName.Contains("upper_chest"))
             {
@@ -92,6 +139,90 @@ namespace MagicaClothColliderBuilder
             }
 
             return BoneFitRole.Default;
+        }
+
+        private static bool TryFitHeadCapsule(ColliderGenerationJob job, out CapsuleFitResult fitResult)
+        {
+            fitResult = default;
+
+            var vertices = job.Vertices;
+
+            if (vertices == null || vertices.Length < 4 || job.TargetBone == null)
+            {
+                return false;
+            }
+
+            HeadFitProperty settings = job.Property.HeadFitProperty;
+            Transform headTransform = job.TargetBone.transform;
+
+            var xValues = new List<float>(vertices.Length);
+            var yValues = new List<float>(vertices.Length);
+            var zValues = new List<float>(vertices.Length);
+
+            for (int i = 0; i < vertices.Length; ++i)
+            {
+                Vector3 v = vertices[i];
+                xValues.Add(v.x);
+                yValues.Add(v.y);
+                zValues.Add(v.z);
+            }
+
+            Vector3 center = new Vector3(
+                Percentile(xValues, 50.0f),
+                Percentile(yValues, 50.0f),
+                Percentile(zValues, 50.0f));
+
+            var distanceValues = new List<float>(vertices.Length);
+
+            for (int i = 0; i < vertices.Length; ++i)
+            {
+                distanceValues.Add((vertices[i] - center).magnitude);
+            }
+
+            float radius = Percentile(distanceValues, settings.RadiusPercentile) * settings.RadiusScale;
+            radius = Mathf.Clamp(radius, settings.MinRadius, settings.MaxRadius);
+
+            Vector3 faceDir = headTransform.InverseTransformDirection(headTransform.root != null ? headTransform.root.forward : Vector3.forward);
+
+            if (faceDir.sqrMagnitude <= 1.0e-8f)
+            {
+                faceDir = Vector3.forward;
+            }
+
+            faceDir.Normalize();
+
+            Vector3 localUp = headTransform.InverseTransformDirection(headTransform.root != null ? headTransform.root.up : Vector3.up);
+
+            if (localUp.sqrMagnitude <= 1.0e-8f)
+            {
+                localUp = Vector3.up;
+            }
+
+            localUp.Normalize();
+            float length = Mathf.Clamp(radius * settings.LengthRatio, 0.005f, radius * 0.6f);
+
+            if (settings.AnchorOuterStartToHeadTransform)
+            {
+                // Keep the outermost tip (not sphere center) of the start cap at the Head transform.
+                // tip_y = center.y - length/2 - radius = 0  =>  center.y = length/2 + radius
+                center = new Vector3(0.0f, length * 0.5f + radius, 0.0f);
+            }
+            else if (settings.UseFaceForwardOffsetWhenNotAnchored)
+            {
+                center += (faceDir * settings.ForwardOffset) + (localUp * settings.UpOffset);
+            }
+
+            fitResult = new CapsuleFitResult
+            {
+                LocalRotation = Quaternion.identity,
+                Direction = MagicaCapsuleCollider.Direction.Y,
+                Center = center,
+                Length = length,
+                RadiusAtMin = radius,
+                RadiusAtMax = radius,
+                ReverseDirection = false,
+            };
+            return true;
         }
 
         private static bool TryFitLimbCapsule(ColliderGenerationJob job, Vector3 childHint, BoneFitRole boneRole, ref CapsuleFitResult fitResult)
@@ -126,6 +257,11 @@ namespace MagicaClothColliderBuilder
             // the total length must include both end radii.
             float totalLength = jointDistance + limbStartRadius + limbEndRadius;
             float centerY = (jointDistance * 0.5f) + ((limbStartRadius - limbEndRadius) * 0.5f);
+           
+               if (!limbSettings.AnchorStartSphereCenterToBone)
+               {
+                   centerY = totalLength * 0.5f;
+               }
 
             fitResult.LocalRotation = limbRotation;
             fitResult.Direction = MagicaCapsuleCollider.Direction.Y;
@@ -272,6 +408,16 @@ namespace MagicaClothColliderBuilder
                 : (boneTransform.root != null ? boneTransform.root.right : Vector3.right);
             Vector3 localHorizontal = boneTransform.InverseTransformDirection(worldHorizontal);
 
+            if (bodySettings.ProjectAxisToBodyUpPlane)
+            {
+                Vector3 bodyUp = GetBodyUpAxisLocal(boneTransform, boneRole);
+
+                if (bodyUp.sqrMagnitude > 1.0e-8f)
+                {
+                    localHorizontal = Vector3.ProjectOnPlane(localHorizontal, bodyUp);
+                }
+            }
+
             if (boneRole == BoneFitRole.Hips && bodySettings.HipsProjectAxisToSpinePlane)
             {
                 Vector3 localSpineUp = GetHipsSpineUpAxisLocal(boneTransform);
@@ -349,6 +495,48 @@ namespace MagicaClothColliderBuilder
 
             Vector3 localSpine = hipsTransform.InverseTransformPoint(spine.position);
             return localSpine.normalized;
+        }
+
+        private static Vector3 GetBodyUpAxisLocal(Transform bodyTransform, BoneFitRole boneRole)
+        {
+            if (boneRole == BoneFitRole.Hips)
+            {
+                return GetHipsSpineUpAxisLocal(bodyTransform);
+            }
+
+            Animator animator = bodyTransform.GetComponentInParent<Animator>();
+
+            if (animator == null || animator.avatar == null || !animator.avatar.isHuman)
+            {
+                return bodyTransform.InverseTransformDirection(bodyTransform.root != null ? bodyTransform.root.up : Vector3.up).normalized;
+            }
+
+            Transform upTarget = null;
+
+            if (boneRole == BoneFitRole.Spine)
+            {
+                upTarget = animator.GetBoneTransform(HumanBodyBones.Chest) ?? animator.GetBoneTransform(HumanBodyBones.UpperChest);
+            }
+            else if (boneRole == BoneFitRole.Chest)
+            {
+                upTarget = animator.GetBoneTransform(HumanBodyBones.UpperChest) ?? animator.GetBoneTransform(HumanBodyBones.Neck);
+            }
+            else if (boneRole == BoneFitRole.UpperChest)
+            {
+                upTarget = animator.GetBoneTransform(HumanBodyBones.Neck) ?? animator.GetBoneTransform(HumanBodyBones.Head);
+            }
+
+            if (upTarget != null)
+            {
+                Vector3 localUp = bodyTransform.InverseTransformPoint(upTarget.position);
+
+                if (localUp.sqrMagnitude > 1.0e-8f)
+                {
+                    return localUp.normalized;
+                }
+            }
+
+            return bodyTransform.InverseTransformDirection(bodyTransform.root != null ? bodyTransform.root.up : Vector3.up).normalized;
         }
 
         private static float GetHipsSpineDistanceLocal(Transform hipsTransform)
@@ -877,6 +1065,11 @@ namespace MagicaClothColliderBuilder
             if (boneTransform == null)
             {
                 return false;
+            }
+
+            if (TryGetHumanoidLimbChildDirectionHint(boneTransform, out _))
+            {
+                return true;
             }
 
             string boneName = boneTransform.name.ToLowerInvariant();

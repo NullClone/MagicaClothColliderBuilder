@@ -44,6 +44,8 @@ namespace MagicaClothColliderBuilder
     [Serializable]
     public class LimbFitProperty
     {
+        public bool ForceFixedAxisByHumanoid = true;
+        public bool AnchorStartSphereCenterToBone = true;
         public float RadiusPercentile = 70.0f;
         public float RadiusScale = 1.0f;
         public float MinJointDistance = 0.02f;
@@ -56,6 +58,7 @@ namespace MagicaClothColliderBuilder
     public class BodyFitProperty
     {
         public BodyHorizontalAxis HorizontalAxis = BodyHorizontalAxis.RootRight;
+        public bool ProjectAxisToBodyUpPlane = true;
         public bool HipsProjectAxisToSpinePlane = true;
         public float HipsMaxLength = 0.22f;
         public float HipsMaxLengthBySpineDistance = 1.8f;
@@ -71,6 +74,20 @@ namespace MagicaClothColliderBuilder
         public float SpineRadiusScale = 0.95f;
         public float ChestRadiusScale = 1.0f;
         public float UpperChestRadiusScale = 1.12f;
+    }
+
+    [Serializable]
+    public class HeadFitProperty
+    {
+        public bool AnchorOuterStartToHeadTransform = true;
+        public bool UseFaceForwardOffsetWhenNotAnchored = true;
+        public float RadiusPercentile = 72.0f;
+        public float RadiusScale = 1.05f;
+        public float MinRadius = 0.06f;
+        public float MaxRadius = 0.25f;
+        public float LengthRatio = 0.12f;
+        public float ForwardOffset = 0.012f;
+        public float UpOffset = 0.0f;
     }
 
     [Serializable]
@@ -113,6 +130,7 @@ namespace MagicaClothColliderBuilder
         public ReducerProperty ReducerProperty = new();
         public LimbFitProperty LimbFitProperty = new();
         public BodyFitProperty BodyFitProperty = new();
+        public HeadFitProperty HeadFitProperty = new();
         public GenericFitProperty GenericFitProperty = new();
     }
 
