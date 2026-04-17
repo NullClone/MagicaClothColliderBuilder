@@ -54,9 +54,13 @@ namespace MagicaClothColliderBuilder
                     Offset = Property.ReducerProperty.Offset,
                     ThicknessA = Property.ReducerProperty.ThicknessA,
                     ThicknessB = Property.ReducerProperty.ThicknessB,
-                    PostfixTransform = true,
-                    Rotation = Quaternion.identity
+                    PostfixTransform = true
                 };
+
+                if (!Property.ReducerProperty.EnableRotationSearch)
+                {
+                    reducer.Rotation = Quaternion.identity;
+                }
 
                 reducer.Reduce();
 

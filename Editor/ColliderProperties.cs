@@ -18,6 +18,7 @@ namespace MagicaClothColliderBuilder
     public class ReducerProperty
     {
         public FitType FitType = FitType.Outer;
+        public bool EnableRotationSearch = false;
         public Vector3 Scale = Vector3.one;
         public Vector3 MinThickness = new Vector3(0.01f, 0.01f, 0.01f);
         public Bool3 OptimizeRotation = new Bool3(true, true, true);

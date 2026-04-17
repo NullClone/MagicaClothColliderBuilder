@@ -35,6 +35,7 @@ namespace MagicaClothColliderBuilder
         private bool m_GreaterBoneWeight = true;
         private BoneTriangleExtent m_BoneTriangleExtent = BoneTriangleExtent.Vertex2;
         private FitType m_FitType = FitType.Outer;
+        private bool m_EnableRotationSearch = false;
         private Vector3 m_Scale = Vector3.one;
         private Vector3 m_MinThickness = new Vector3(0.01f, 0.01f, 0.01f);
         private bool m_OptimizeRotationX = true;
@@ -135,6 +136,7 @@ namespace MagicaClothColliderBuilder
                 if (!m_ShowReducerSettings) return;
 
                 m_FitType = (FitType)EditorGUILayout.EnumPopup("Fit Type", m_FitType);
+                m_EnableRotationSearch = EditorGUILayout.Toggle("Enable Rotation Search", m_EnableRotationSearch);
                 m_Scale = EditorGUILayout.Vector3Field("Scale", m_Scale);
                 m_MinThickness = EditorGUILayout.Vector3Field("Min Thickness", m_MinThickness);
                 m_MinThickness.x = Mathf.Max(0.0f, m_MinThickness.x);
@@ -259,6 +261,7 @@ namespace MagicaClothColliderBuilder
             property.SplitProperty.BoneTriangleExtent = m_BoneTriangleExtent;
 
             property.ReducerProperty.FitType = m_FitType;
+            property.ReducerProperty.EnableRotationSearch = m_EnableRotationSearch;
             property.ReducerProperty.Scale = m_Scale;
             property.ReducerProperty.MinThickness = m_MinThickness;
             property.ReducerProperty.OptimizeRotation = new Bool3(m_OptimizeRotationX, m_OptimizeRotationY, m_OptimizeRotationZ);
