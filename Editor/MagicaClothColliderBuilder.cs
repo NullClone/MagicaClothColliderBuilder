@@ -37,10 +37,7 @@ namespace MagicaClothColliderBuilder
         {
             EditorGUILayout.Space();
 
-            m_SelectedTab = (SettingsTab)GUILayout.Toolbar(
-                (int)m_SelectedTab,
-                new[] { "Overview", "Split", "Limbs", "Body", "Generic", "Reducer" },
-                GUILayout.Height(28f));
+            m_SelectedTab = (SettingsTab)GUILayout.Toolbar((int)m_SelectedTab, new[] { "Overview", "Split", "Limbs", "Body", "Generic", "Reducer" }, GUILayout.Height(28f));
 
             EditorGUILayout.Space();
 
@@ -69,6 +66,7 @@ namespace MagicaClothColliderBuilder
             }
 
             DrawActionSection();
+
             EditorGUILayout.Space();
             EditorGUILayout.EndScrollView();
         }
@@ -98,7 +96,6 @@ namespace MagicaClothColliderBuilder
                 if (GUILayout.Button("Reset All Settings"))
                 {
                     m_Settings = new SABoneColliderProperty();
-                    m_GeneratedColliders.Clear();
                 }
             });
         }
@@ -278,19 +275,15 @@ namespace MagicaClothColliderBuilder
             {
                 if (m_TargetAvatarRoot.GetComponentsInChildren<MagicaCapsuleCollider>(true).Length != 0)
                 {
-                    int selected = EditorUtility.DisplayDialogComplex(
-                    "Existing Colliders Found",
-                    "A collider has already been generated. Do you want to clean it up and then regenerate it?",
-                    "Cleanup And Generate",
-                    "Cancel",
-                    "Generate Without Cleanup");
-
-                    if (selected == 1) return;
-
-                    if (selected == 0)
+                    if (EditorUtility.DisplayDialog(
+                        "Existing Colliders Found",
+                        "A collider has already been generated. Do you want to clean it up and then regenerate it?",
+                        "Cleanup And Generate",
+                        "Cancel"))
                     {
                         CleanupExistingColliders();
                     }
+                    else return;
                 }
 
                 var generator = new ColliderGenerator(
@@ -322,6 +315,7 @@ namespace MagicaClothColliderBuilder
             if (GUILayout.Button("Cleanup Existing Colliders", GUILayout.Height(26f)))
             {
                 CleanupExistingColliders();
+
                 m_GeneratedColliders.Clear();
             }
 
@@ -358,6 +352,7 @@ namespace MagicaClothColliderBuilder
             {
                 EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
                 EditorGUILayout.Space();
+
                 drawContent?.Invoke();
             }
 

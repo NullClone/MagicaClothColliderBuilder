@@ -165,9 +165,8 @@ namespace MagicaClothColliderBuilder
             if (gameObject == null) return null;
 
             var skinnedMeshRenderers = new List<SkinnedMeshRenderer>();
-            var skinnedMeshRenderer = gameObject.GetComponent<SkinnedMeshRenderer>();
 
-            if (skinnedMeshRenderer != null)
+            if (gameObject.TryGetComponent<SkinnedMeshRenderer>(out var skinnedMeshRenderer))
             {
                 skinnedMeshRenderers.Add(skinnedMeshRenderer);
             }

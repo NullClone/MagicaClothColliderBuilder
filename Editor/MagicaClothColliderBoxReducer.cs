@@ -11,7 +11,6 @@ namespace MagicaClothColliderBuilder
         private bool[] m_UsedVertexList;
         private int[] m_LineList;
         private Vector3 m_Center = Vector3.zero;
-        private bool m_CenterEnabled;
         private Quaternion m_Rotation = Quaternion.identity;
         private bool m_RotationEnabled;
         public bool m_OptimizeRotationX = true;
@@ -23,7 +22,6 @@ namespace MagicaClothColliderBuilder
         private Vector3 m_ThicknessB = Vector3.zero;
         private Vector3 m_BoundingBoxA = Vector3.zero;
         private Vector3 m_BoundingBoxB = Vector3.zero;
-        private int m_SliceCount = 31;
         private int m_SlicedDimension;
         private Vector3[] m_SlicedBoundingBoxA;
         private Vector3[] m_SlicedBoundingBoxB;
@@ -38,6 +36,8 @@ namespace MagicaClothColliderBuilder
         private Vector3 m_ReducedBoxA = Vector3.zero;
         private Vector3 m_ReducedBoxB = Vector3.zero;
         private bool m_PostfixTransform = true;
+        private readonly bool m_CenterEnabled;
+        private readonly int m_SliceCount = 31;
 
         public ReduceMode ReduceMode { set { m_ReduceMode = value; } }
 

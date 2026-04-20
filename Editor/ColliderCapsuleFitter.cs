@@ -314,22 +314,27 @@ namespace MagicaClothColliderBuilder
                     {
                         float centerY = Mathf.Lerp(minY, maxY, centerYRatios[cy]);
                         Vector3 candidateCenter = new Vector3(centerSeed.x, centerY, centerSeed.z);
+                        var baseRadii = new float[radiusPercentiles.Length];
+                        bool hasWeightedRadii = TryGetAreaWeightedDistancePercentiles(vertices, job.Triangles, candidateCenter, radiusPercentiles, baseRadii);
+                        List<float> sortedDistanceValues = null;
+
+                        if (!hasWeightedRadii)
+                        {
+                            sortedDistanceValues = new List<float>(vertices.Length);
+
+                            for (int vertexIndex = 0; vertexIndex < vertices.Length; ++vertexIndex)
+                            {
+                                sortedDistanceValues.Add((vertices[vertexIndex] - candidateCenter).magnitude);
+                            }
+
+                            sortedDistanceValues.Sort();
+                        }
 
                         for (int rp = 0; rp < radiusPercentiles.Length; ++rp)
                         {
-                            float baseRadius;
-
-                            if (!TryGetAreaWeightedDistancePercentile(vertices, job.Triangles, candidateCenter, radiusPercentiles[rp], out baseRadius))
-                            {
-                                var distanceValues = new List<float>(vertices.Length);
-
-                                for (int vertexIndex = 0; vertexIndex < vertices.Length; ++vertexIndex)
-                                {
-                                    distanceValues.Add((vertices[vertexIndex] - candidateCenter).magnitude);
-                                }
-
-                                baseRadius = Percentile(distanceValues, radiusPercentiles[rp]);
-                            }
+                            float baseRadius = hasWeightedRadii
+                                ? baseRadii[rp]
+                                : PercentileFromSorted(sortedDistanceValues, radiusPercentiles[rp]);
 
                             float radius = Mathf.Clamp(baseRadius * settings.RadiusScale, settings.MinRadius, settings.MaxRadius);
 
@@ -418,11 +423,11 @@ namespace MagicaClothColliderBuilder
             // the total length must include both end radii.
             float totalLength = jointDistance + limbStartRadius + limbEndRadius;
             float centerY = (jointDistance * 0.5f) + ((limbStartRadius - limbEndRadius) * 0.5f);
-           
-               if (!limbSettings.AnchorStartSphereCenterToBone)
-               {
-                   centerY = totalLength * 0.5f;
-               }
+
+            if (!limbSettings.AnchorStartSphereCenterToBone)
+            {
+                centerY = totalLength * 0.5f;
+            }
 
             fitResult.LocalRotation = limbRotation;
             fitResult.Direction = MagicaCapsuleCollider.Direction.Y;
@@ -1243,11 +1248,14 @@ namespace MagicaClothColliderBuilder
             return values;
         }
 
-        private static bool TryGetAreaWeightedDistancePercentile(Vector3[] vertices, int[] triangles, Vector3 center, float percentile, out float weightedRadius)
+        private static bool TryGetAreaWeightedDistancePercentiles(Vector3[] vertices, int[] triangles, Vector3 center, float[] percentiles, float[] weightedRadii)
         {
-            weightedRadius = 0.0f;
+            if (vertices == null || triangles == null || percentiles == null || weightedRadii == null)
+            {
+                return false;
+            }
 
-            if (vertices == null || triangles == null || triangles.Length < 3)
+            if (triangles.Length < 3 || percentiles.Length == 0 || weightedRadii.Length < percentiles.Length)
             {
                 return false;
             }
@@ -1289,7 +1297,70 @@ namespace MagicaClothColliderBuilder
                 return false;
             }
 
-            weightedRadius = WeightedPercentile(values, weights, percentile);
+            int percentileCount = percentiles.Length;
+
+            var samples = new List<WeightedSample>(values.Count);
+            float totalWeight = 0.0f;
+
+            for (int i = 0; i < values.Count; ++i)
+            {
+                float weight = weights[i];
+
+                if (weight <= 0.0f)
+                {
+                    continue;
+                }
+
+                samples.Add(new WeightedSample
+                {
+                    Value = values[i],
+                    Weight = weight,
+                });
+
+                totalWeight += weight;
+            }
+
+            if (samples.Count == 0 || totalWeight <= 0.0f)
+            {
+                return false;
+            }
+
+            samples.Sort((a, b) => a.Value.CompareTo(b.Value));
+            var queries = new List<PercentileQuery>(percentileCount);
+
+            for (int i = 0; i < percentileCount; ++i)
+            {
+                queries.Add(new PercentileQuery
+                {
+                    Index = i,
+                    Target = Mathf.Clamp(percentiles[i], 0.0f, 100.0f) * 0.01f * totalWeight,
+                });
+            }
+
+            queries.Sort((a, b) => a.Target.CompareTo(b.Target));
+
+            float cumulative = 0.0f;
+            int queryIndex = 0;
+
+            for (int sampleIndex = 0; sampleIndex < samples.Count && queryIndex < queries.Count; ++sampleIndex)
+            {
+                cumulative += samples[sampleIndex].Weight;
+
+                while (queryIndex < queries.Count && cumulative >= queries[queryIndex].Target)
+                {
+                    weightedRadii[queries[queryIndex].Index] = samples[sampleIndex].Value;
+                    ++queryIndex;
+                }
+            }
+
+            float lastValue = samples[samples.Count - 1].Value;
+
+            while (queryIndex < queries.Count)
+            {
+                weightedRadii[queries[queryIndex].Index] = lastValue;
+                ++queryIndex;
+            }
+
             return true;
         }
 
@@ -1495,6 +1566,12 @@ namespace MagicaClothColliderBuilder
         {
             public float Value;
             public float Weight;
+        }
+
+        private struct PercentileQuery
+        {
+            public int Index;
+            public float Target;
         }
 
         private static bool TryGetParentDirectionHint(Transform boneTransform, out Vector3 directionHint)

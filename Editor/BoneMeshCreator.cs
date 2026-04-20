@@ -35,13 +35,6 @@ namespace MagicaClothColliderBuilder
                 return false;
             }
 
-            InitializeState(boneGameObject, splitProperty, boneMeshCache);
-
-            return ProcessInternal();
-        }
-
-        private void InitializeState(GameObject boneGameObject, SplitProperty splitProperty, BoneMeshCache boneMeshCache)
-        {
             m_BoneGameObject = boneGameObject;
             m_SplitProperty = splitProperty;
             m_BoneMeshCache = boneMeshCache;
@@ -54,6 +47,21 @@ namespace MagicaClothColliderBuilder
             m_MeshTriangles = boneMeshCache.MeshTriangles;
             m_TargetBones = boneMeshCache.TargetBones;
             m_ProcessedVertices = boneMeshCache.ProcessedVertices;
+
+            RebuildTargetBones(m_BoneGameObject.transform);
+
+            if (!PopulateTargetVertices()) return false;
+
+            if (m_SplitProperty.BoneTriangleExtent != BoneTriangleExtent.Disable)
+            {
+                ExtendTargetVerticesByTriangles();
+            }
+
+            if (!TryCollectPassedTriangles(out var passedTriangles)) return false;
+
+            RebuildLocalMesh(passedTriangles);
+
+            return true;
         }
 
         private void RebuildTargetBones(Transform boneTransform)
@@ -69,24 +77,6 @@ namespace MagicaClothColliderBuilder
                     m_TargetBones[i] = true;
                 }
             }
-        }
-
-        private bool ProcessInternal()
-        {
-            RebuildTargetBones(m_BoneGameObject.transform);
-
-            if (!PopulateTargetVertices()) return false;
-
-            if (m_SplitProperty.BoneTriangleExtent != BoneTriangleExtent.Disable)
-            {
-                ExtendTargetVerticesByTriangles();
-            }
-
-            if (!TryCollectPassedTriangles(out var passedTriangles)) return false;
-
-            RebuildLocalMesh(passedTriangles);
-
-            return true;
         }
 
         private bool PopulateTargetVertices()
@@ -166,10 +156,7 @@ namespace MagicaClothColliderBuilder
                 }
             }
 
-            if (!m_SplitProperty.GreaterBoneWeight)
-            {
-                return -1;
-            }
+            if (!m_SplitProperty.GreaterBoneWeight) return -1;
 
             return ResolveDominantTargetBoneIndex(boneWeightArray, boneIndexArray);
         }
@@ -229,10 +216,7 @@ namespace MagicaClothColliderBuilder
 
                 int replicateBoneIndex = GetReplicateBoneIndex(index0, index1, index2, pv0, pv1, pv2, boneIndices);
 
-                if (replicateBoneIndex < 0)
-                {
-                    continue;
-                }
+                if (replicateBoneIndex < 0) continue;
 
                 if (boneIndices[index0] == -1) boneIndices[index0] = replicateBoneIndex;
                 if (boneIndices[index1] == -1) boneIndices[index1] = replicateBoneIndex;
@@ -356,14 +340,12 @@ namespace MagicaClothColliderBuilder
 
                 int boneIndex = boneIndices[i];
 
-                if (boneIndex < 0 || boneIndex >= m_MeshBindPoses.Length)
-                {
-                    continue;
-                }
+                if (boneIndex < 0 || boneIndex >= m_MeshBindPoses.Length) continue;
 
-                Matrix4x4 matrix = m_MeshBindPoses[boneIndex];
+                var matrix = m_MeshBindPoses[boneIndex];
                 remakeVertices[index] = matrix.MultiplyPoint(m_MeshVertices[i]);
                 redirectIndex[i] = index;
+
                 ++index;
             }
 
@@ -375,10 +357,7 @@ namespace MagicaClothColliderBuilder
                 int index1 = redirectIndex[passedTriangles[i + 1]];
                 int index2 = redirectIndex[passedTriangles[i + 2]];
 
-                if (index0 < 0 || index1 < 0 || index2 < 0)
-                {
-                    continue;
-                }
+                if (index0 < 0 || index1 < 0 || index2 < 0) continue;
 
                 remappedTriangles.Add(index0);
                 remappedTriangles.Add(index1);
