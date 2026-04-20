@@ -1,6 +1,5 @@
 using MagicaCloth2;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace MagicaClothColliderBuilder
@@ -12,6 +11,7 @@ namespace MagicaClothColliderBuilder
         Spine,
         Chest,
         UpperChest,
+        Neck,
         Head,
     }
 
@@ -105,6 +105,11 @@ namespace MagicaClothColliderBuilder
                     return BoneFitRole.UpperChest;
                 }
 
+                if (boneTransform == animator.GetBoneTransform(HumanBodyBones.Neck))
+                {
+                    return BoneFitRole.Neck;
+                }
+
                 if (boneTransform == animator.GetBoneTransform(HumanBodyBones.Head))
                 {
                     return BoneFitRole.Head;
@@ -116,6 +121,11 @@ namespace MagicaClothColliderBuilder
             if (boneName.Contains("head"))
             {
                 return BoneFitRole.Head;
+            }
+
+            if (boneName.Contains("neck"))
+            {
+                return BoneFitRole.Neck;
             }
 
             if (boneName.Contains("upperchest") || boneName.Contains("upper_chest"))
@@ -179,7 +189,14 @@ namespace MagicaClothColliderBuilder
                 distanceValues.Add((vertices[i] - center).magnitude);
             }
 
-            float radius = Percentile(distanceValues, settings.RadiusPercentile) * settings.RadiusScale;
+            float baseRadius;
+
+            if (!TryGetAreaWeightedDistancePercentile(vertices, job.Triangles, center, settings.RadiusPercentile, out baseRadius))
+            {
+                baseRadius = Percentile(distanceValues, settings.RadiusPercentile);
+            }
+
+            float radius = baseRadius * settings.RadiusScale;
             radius = Mathf.Clamp(radius, settings.MinRadius, settings.MaxRadius);
 
             Vector3 faceDir = headTransform.InverseTransformDirection(headTransform.root != null ? headTransform.root.forward : Vector3.forward);
@@ -323,7 +340,7 @@ namespace MagicaClothColliderBuilder
                     fitPercentile,
                     boneLengthHint,
                     boneRole,
-                    false,
+                    boneRole == BoneFitRole.Neck,
                     job.Property,
                     out Vector3 candidateCenter,
                     out float candidateLength,
@@ -387,6 +404,11 @@ namespace MagicaClothColliderBuilder
                 return settings.UpperChestFitPercentile;
             }
 
+            if (boneRole == BoneFitRole.Neck)
+            {
+                return settings.SpineChestFitPercentile;
+            }
+
             return settings.DefaultFitPercentile;
         }
 
@@ -439,10 +461,12 @@ namespace MagicaClothColliderBuilder
 
             var absYValues = new List<float>(vertices.Length);
             var radialValues = new List<float>(vertices.Length);
+            var rotated = new Vector3[vertices.Length];
 
             for (int i = 0; i < vertices.Length; ++i)
             {
                 Vector3 rv = inverseRotation * vertices[i];
+                rotated[i] = rv;
                 absYValues.Add(Mathf.Abs(rv.y));
                 radialValues.Add(Mathf.Sqrt((rv.x * rv.x) + (rv.z * rv.z)));
             }
@@ -460,7 +484,13 @@ namespace MagicaClothColliderBuilder
                 length = Mathf.Min(length, hipsMaxLength);
             }
 
-            float radius = Percentile(radialValues, bodySettings.RadiusPercentile);
+            float radius;
+
+            if (!TryGetAreaWeightedRadialPercentile(rotated, job.Triangles, bodySettings.RadiusPercentile, out radius))
+            {
+                radius = Percentile(radialValues, bodySettings.RadiusPercentile);
+            }
+
             radius *= GetHorizontalRadiusScale(bodySettings, boneRole);
             radius = Mathf.Clamp(radius, bodySettings.MinRadius, Mathf.Max(bodySettings.MinRadius, length * bodySettings.MaxRadiusByLengthRatio));
 
@@ -774,7 +804,9 @@ namespace MagicaClothColliderBuilder
             }
             else
             {
-                GetPercentileBounds(yValues, boneLengthHint, boneRole, property.GenericFitProperty, out minY, out maxY, out length);
+                var sortedYValues = new List<float>(yValues);
+                sortedYValues.Sort();
+                GetPercentileBoundsFromSorted(sortedYValues, boneLengthHint, boneRole, property.GenericFitProperty, out minY, out maxY, out length);
                 centerX = Percentile(xValues, 50.0f);
                 centerY = Mathf.Lerp(minY, maxY, GetCenterYRatio(property.GenericFitProperty, boneRole));
                 centerZ = Percentile(zValues, 50.0f);
@@ -850,7 +882,7 @@ namespace MagicaClothColliderBuilder
             return true;
         }
 
-        private static void GetPercentileBounds(List<float> yValues, float boneLengthHint, BoneFitRole boneRole, GenericFitProperty settings, out float minY, out float maxY, out float length)
+        private static void GetPercentileBoundsFromSorted(List<float> sortedYValues, float boneLengthHint, BoneFitRole boneRole, GenericFitProperty settings, out float minY, out float maxY, out float length)
         {
             float lowerPercentile = settings.DefaultLowerPercentile;
             float upperPercentile = settings.DefaultUpperPercentile;
@@ -871,13 +903,13 @@ namespace MagicaClothColliderBuilder
                 upperPercentile = settings.UpperChestUpperPercentile;
             }
 
-            minY = Percentile(yValues, lowerPercentile);
-            maxY = Percentile(yValues, upperPercentile);
+            minY = PercentileFromSorted(sortedYValues, lowerPercentile);
+            maxY = PercentileFromSorted(sortedYValues, upperPercentile);
 
             if (maxY <= minY)
             {
-                minY = Percentile(yValues, 0.0f);
-                maxY = Percentile(yValues, 100.0f);
+                minY = PercentileFromSorted(sortedYValues, 0.0f);
+                maxY = PercentileFromSorted(sortedYValues, 100.0f);
             }
 
             length = Mathf.Max(settings.MinLength, maxY - minY);
@@ -945,6 +977,7 @@ namespace MagicaClothColliderBuilder
         private static float CalculateCapsuleScore(Vector3[] rotated, float minY, float maxY, float centerX, float centerZ, float length, float startRadius, float endRadius)
         {
             var overflowList = new List<float>(rotated.Length);
+            float overflowSum = 0.0f;
 
             for (int i = 0; i < rotated.Length; ++i)
             {
@@ -954,13 +987,172 @@ namespace MagicaClothColliderBuilder
                 float dx = v.x - centerX;
                 float dz = v.z - centerZ;
                 float radial = Mathf.Sqrt((dx * dx) + (dz * dz));
-                overflowList.Add(Mathf.Max(0.0f, radial - allowed));
+                float overflow = Mathf.Max(0.0f, radial - allowed);
+                overflowList.Add(overflow);
+                overflowSum += overflow;
             }
 
             float overflow95 = Percentile(overflowList, 95.0f);
-            float overflowMean = overflowList.Sum() / overflowList.Count;
+            float overflowMean = overflowList.Count > 0 ? (overflowSum / overflowList.Count) : 0.0f;
             float compactness = (startRadius + endRadius) / Mathf.Max(length, 0.001f);
             return (overflow95 * 4.0f) + (overflowMean * 2.0f) + (compactness * 0.15f);
+        }
+
+        private static bool TryGetAreaWeightedDistancePercentile(Vector3[] vertices, int[] triangles, Vector3 center, float percentile, out float weightedRadius)
+        {
+            weightedRadius = 0.0f;
+
+            if (vertices == null || triangles == null || triangles.Length < 3)
+            {
+                return false;
+            }
+
+            var values = new List<float>(triangles.Length);
+            var weights = new List<float>(triangles.Length);
+
+            for (int i = 0; i + 2 < triangles.Length; i += 3)
+            {
+                int i0 = triangles[i + 0];
+                int i1 = triangles[i + 1];
+                int i2 = triangles[i + 2];
+
+                if (i0 < 0 || i1 < 0 || i2 < 0 || i0 >= vertices.Length || i1 >= vertices.Length || i2 >= vertices.Length)
+                {
+                    continue;
+                }
+
+                Vector3 v0 = vertices[i0];
+                Vector3 v1 = vertices[i1];
+                Vector3 v2 = vertices[i2];
+                float area = Vector3.Cross(v1 - v0, v2 - v0).magnitude * 0.5f;
+
+                if (area <= 1.0e-12f)
+                {
+                    continue;
+                }
+
+                values.Add((v0 - center).magnitude);
+                weights.Add(area);
+                values.Add((v1 - center).magnitude);
+                weights.Add(area);
+                values.Add((v2 - center).magnitude);
+                weights.Add(area);
+            }
+
+            if (values.Count == 0)
+            {
+                return false;
+            }
+
+            weightedRadius = WeightedPercentile(values, weights, percentile);
+            return true;
+        }
+
+        private static bool TryGetAreaWeightedRadialPercentile(Vector3[] rotatedVertices, int[] triangles, float percentile, out float weightedRadius)
+        {
+            weightedRadius = 0.0f;
+
+            if (rotatedVertices == null || triangles == null || triangles.Length < 3)
+            {
+                return false;
+            }
+
+            var values = new List<float>(triangles.Length);
+            var weights = new List<float>(triangles.Length);
+
+            for (int i = 0; i + 2 < triangles.Length; i += 3)
+            {
+                int i0 = triangles[i + 0];
+                int i1 = triangles[i + 1];
+                int i2 = triangles[i + 2];
+
+                if (i0 < 0 || i1 < 0 || i2 < 0 || i0 >= rotatedVertices.Length || i1 >= rotatedVertices.Length || i2 >= rotatedVertices.Length)
+                {
+                    continue;
+                }
+
+                Vector3 v0 = rotatedVertices[i0];
+                Vector3 v1 = rotatedVertices[i1];
+                Vector3 v2 = rotatedVertices[i2];
+                float area = Vector3.Cross(v1 - v0, v2 - v0).magnitude * 0.5f;
+
+                if (area <= 1.0e-12f)
+                {
+                    continue;
+                }
+
+                values.Add(Mathf.Sqrt((v0.x * v0.x) + (v0.z * v0.z)));
+                weights.Add(area);
+                values.Add(Mathf.Sqrt((v1.x * v1.x) + (v1.z * v1.z)));
+                weights.Add(area);
+                values.Add(Mathf.Sqrt((v2.x * v2.x) + (v2.z * v2.z)));
+                weights.Add(area);
+            }
+
+            if (values.Count == 0)
+            {
+                return false;
+            }
+
+            weightedRadius = WeightedPercentile(values, weights, percentile);
+            return true;
+        }
+
+        private static float WeightedPercentile(List<float> values, List<float> weights, float percentile)
+        {
+            if (values == null || weights == null || values.Count == 0 || weights.Count == 0)
+            {
+                return 0.0f;
+            }
+
+            int count = Mathf.Min(values.Count, weights.Count);
+
+            if (count <= 0)
+            {
+                return 0.0f;
+            }
+
+            var samples = new List<WeightedSample>(count);
+            float totalWeight = 0.0f;
+
+            for (int i = 0; i < count; ++i)
+            {
+                float weight = weights[i];
+
+                if (weight <= 0.0f)
+                {
+                    continue;
+                }
+
+                samples.Add(new WeightedSample
+                {
+                    Value = values[i],
+                    Weight = weight,
+                });
+
+                totalWeight += weight;
+            }
+
+            if (samples.Count == 0 || totalWeight <= 0.0f)
+            {
+                return 0.0f;
+            }
+
+            samples.Sort((a, b) => a.Value.CompareTo(b.Value));
+            float target = Mathf.Clamp(percentile, 0.0f, 100.0f) * 0.01f * totalWeight;
+            float cumulative = 0.0f;
+
+            for (int i = 0; i < samples.Count; ++i)
+            {
+                cumulative += samples[i].Weight;
+
+                if (cumulative >= target)
+                {
+                    return samples[i].Value;
+                }
+            }
+
+            return samples[samples.Count - 1].Value;
         }
 
         private static Vector3 GetPrincipalAxis(Vector3[] vertices)
@@ -1024,26 +1216,40 @@ namespace MagicaClothColliderBuilder
                 return 0.0f;
             }
 
-            var ordered = new List<float>(values);
-            ordered.Sort();
+            values.Sort();
+            return PercentileFromSorted(values, percentile);
+        }
 
-            if (ordered.Count == 1)
+        private static float PercentileFromSorted(List<float> sortedValues, float percentile)
+        {
+            if (sortedValues == null || sortedValues.Count == 0)
             {
-                return ordered[0];
+                return 0.0f;
+            }
+
+            if (sortedValues.Count == 1)
+            {
+                return sortedValues[0];
             }
 
             float clampedPercentile = Mathf.Clamp(percentile, 0.0f, 100.0f);
-            float rank = (clampedPercentile * 0.01f) * (ordered.Count - 1);
+            float rank = (clampedPercentile * 0.01f) * (sortedValues.Count - 1);
             int lowerIndex = Mathf.FloorToInt(rank);
             int upperIndex = Mathf.CeilToInt(rank);
 
             if (lowerIndex == upperIndex)
             {
-                return ordered[lowerIndex];
+                return sortedValues[lowerIndex];
             }
 
             float t = rank - lowerIndex;
-            return Mathf.Lerp(ordered[lowerIndex], ordered[upperIndex], t);
+            return Mathf.Lerp(sortedValues[lowerIndex], sortedValues[upperIndex], t);
+        }
+
+        private struct WeightedSample
+        {
+            public float Value;
+            public float Weight;
         }
 
         private static bool TryGetParentDirectionHint(Transform boneTransform, out Vector3 directionHint)
