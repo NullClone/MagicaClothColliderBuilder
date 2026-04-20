@@ -144,19 +144,19 @@ namespace MagicaClothColliderBuilder
             var beginEuler = new Vector3Int(0, 0, 0);
             var endEuler = new Vector3Int(180, 180, 180);
 
-            if (!m_OptimizeRotation.X)
+            if (!m_OptimizeRotationX)
             {
                 beginEuler.x = 0;
                 endEuler.x = 1;
             }
 
-            if (!m_OptimizeRotation.Y)
+            if (!m_OptimizeRotationY)
             {
                 beginEuler.y = 0;
                 endEuler.y = 1;
             }
 
-            if (!m_OptimizeRotation.Z)
+            if (!m_OptimizeRotationZ)
             {
                 beginEuler.z = 0;
                 endEuler.z = 1;
@@ -171,17 +171,17 @@ namespace MagicaClothColliderBuilder
             beginEuler = new Vector3Int(fx - coarseStep, fy - coarseStep, fz - coarseStep);
             endEuler = new Vector3Int(fx + coarseStep, fy + coarseStep, fz + coarseStep);
 
-            if (!m_OptimizeRotation.X)
+            if (!m_OptimizeRotationX)
             {
                 beginEuler.x = 0;
                 endEuler.x = 1;
             }
-            if (!m_OptimizeRotation.Y)
+            if (!m_OptimizeRotationY)
             {
                 beginEuler.y = 0;
                 endEuler.y = 1;
             }
-            if (!m_OptimizeRotation.Z)
+            if (!m_OptimizeRotationZ)
             {
                 beginEuler.z = 0;
                 endEuler.z = 1;
@@ -196,19 +196,19 @@ namespace MagicaClothColliderBuilder
             beginEuler = new Vector3Int(fx - mediumStep, fy - mediumStep, fz - mediumStep);
             endEuler = new Vector3Int(fx + mediumStep, fy + mediumStep, fz + mediumStep);
 
-            if (!m_OptimizeRotation.X)
+            if (!m_OptimizeRotationX)
             {
                 beginEuler.x = 0;
                 endEuler.x = 1;
             }
 
-            if (!m_OptimizeRotation.Y)
+            if (!m_OptimizeRotationY)
             {
                 beginEuler.y = 0;
                 endEuler.y = 1;
             }
 
-            if (!m_OptimizeRotation.Z)
+            if (!m_OptimizeRotationZ)
             {
                 beginEuler.z = 0;
                 endEuler.z = 1;

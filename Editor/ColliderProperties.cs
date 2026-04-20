@@ -17,7 +17,6 @@ namespace MagicaClothColliderBuilder
     [Serializable]
     public class GenerationProperty
     {
-        public bool CreateFallbackForBonesWithoutMesh = true;
         public bool IncludeHips = false;
         public bool IncludeFingers = false;
         public bool IncludeShoulders = false;
@@ -31,7 +30,9 @@ namespace MagicaClothColliderBuilder
         public bool EnableRotationSearch = false;
         public Vector3 Scale = Vector3.one;
         public Vector3 MinThickness = new Vector3(0.01f, 0.01f, 0.01f);
-        public Bool3 OptimizeRotation = new Bool3(true, true, true);
+        public bool OptimizeRotationX = true;
+        public bool OptimizeRotationY = true;
+        public bool OptimizeRotationZ = true;
 
         [HideInInspector] public ElementType ScaleElementType = ElementType.X;
         [HideInInspector] public ElementType MinThicknessElementType = ElementType.X;

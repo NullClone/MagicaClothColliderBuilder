@@ -14,7 +14,9 @@ namespace MagicaClothColliderBuilder
         private bool m_CenterEnabled;
         private Quaternion m_Rotation = Quaternion.identity;
         private bool m_RotationEnabled;
-        private Bool3 m_OptimizeRotation = new Bool3(true, true, true);
+        public bool m_OptimizeRotationX = true;
+        public bool m_OptimizeRotationY = true;
+        public bool m_OptimizeRotationZ = true;
         private Vector3 m_Scale = Vector3.one;
         private Vector3 m_Offset = Vector3.zero;
         private Vector3 m_ThicknessA = Vector3.zero;
@@ -43,7 +45,11 @@ namespace MagicaClothColliderBuilder
 
         public Quaternion Rotation { set { m_RotationEnabled = true; m_Rotation = value; } }
 
-        public Bool3 OptimizeRotation { set { m_OptimizeRotation = value; } }
+        public bool OptimizeRotationX { set { m_OptimizeRotationX = value; } }
+
+        public bool OptimizeRotationY { set { m_OptimizeRotationY = value; } }
+
+        public bool OptimizeRotationZ { set { m_OptimizeRotationZ = value; } }
 
         public Vector3 Scale { set { m_Scale = value; } }
 

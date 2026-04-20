@@ -68,7 +68,6 @@ namespace MagicaClothColliderBuilder
                     break;
             }
 
-            EditorGUILayout.Space();
             DrawActionSection();
             EditorGUILayout.Space();
             EditorGUILayout.EndScrollView();
@@ -83,14 +82,13 @@ namespace MagicaClothColliderBuilder
                 if (m_TargetAvatarRoot == null)
                 {
                     EditorGUILayout.Space();
-                    EditorGUILayout.HelpBox("Humanoid Animator を持つ Avatar Root を指定してください。", MessageType.Warning);
+                    EditorGUILayout.HelpBox("Please specify an Avatar Root.", MessageType.Warning);
                     return;
                 }
             });
 
             DrawCard("Generation", () =>
             {
-                m_Settings.GenerationProperty.CreateFallbackForBonesWithoutMesh = EditorGUILayout.Toggle("Create Fallback For Missing Mesh", m_Settings.GenerationProperty.CreateFallbackForBonesWithoutMesh);
                 m_Settings.GenerationProperty.IncludeHips = EditorGUILayout.Toggle("Include Hips", m_Settings.GenerationProperty.IncludeHips);
                 m_Settings.GenerationProperty.IncludeShoulders = EditorGUILayout.Toggle("Include Shoulders", m_Settings.GenerationProperty.IncludeShoulders);
                 m_Settings.GenerationProperty.IncludeFingers = EditorGUILayout.Toggle("Include Fingers", m_Settings.GenerationProperty.IncludeFingers);
@@ -257,9 +255,9 @@ namespace MagicaClothColliderBuilder
                 ReducerProperty reducer = m_Settings.ReducerProperty;
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    reducer.OptimizeRotation.X = EditorGUILayout.ToggleLeft("X", reducer.OptimizeRotation.X, GUILayout.Width(60f));
-                    reducer.OptimizeRotation.Y = EditorGUILayout.ToggleLeft("Y", reducer.OptimizeRotation.Y, GUILayout.Width(60f));
-                    reducer.OptimizeRotation.Z = EditorGUILayout.ToggleLeft("Z", reducer.OptimizeRotation.Z, GUILayout.Width(60f));
+                    reducer.OptimizeRotationX = EditorGUILayout.ToggleLeft("X", reducer.OptimizeRotationX, GUILayout.Width(60f));
+                    reducer.OptimizeRotationY = EditorGUILayout.ToggleLeft("Y", reducer.OptimizeRotationY, GUILayout.Width(60f));
+                    reducer.OptimizeRotationZ = EditorGUILayout.ToggleLeft("Z", reducer.OptimizeRotationZ, GUILayout.Width(60f));
                 }
             });
 
@@ -282,7 +280,7 @@ namespace MagicaClothColliderBuilder
                 {
                     int selected = EditorUtility.DisplayDialogComplex(
                     "Existing Colliders Found",
-                    "既にコライダーが生成されています。クリーンアップしてから再生成しますか？",
+                    "A collider has already been generated. Do you want to clean it up and then regenerate it?",
                     "Cleanup And Generate",
                     "Cancel",
                     "Generate Without Cleanup");
@@ -321,6 +319,7 @@ namespace MagicaClothColliderBuilder
             if (m_TargetAvatarRoot == null)
             {
                 Debug.LogWarning("No target object selected for cleanup.");
+
                 return;
             }
 
@@ -344,11 +343,11 @@ namespace MagicaClothColliderBuilder
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
                 EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
-                EditorGUILayout.Space(3f);
+                EditorGUILayout.Space();
                 drawContent?.Invoke();
             }
 
-            EditorGUILayout.Space(6f);
+            EditorGUILayout.Space();
         }
     }
 }

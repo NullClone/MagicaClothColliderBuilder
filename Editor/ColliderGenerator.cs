@@ -69,22 +69,21 @@ namespace MagicaClothColliderBuilder
             }
 
             ExecuteJobs(generationJobs);
+
             createdColliders.AddRange(CreateCollidersFromResults(generationJobs));
 
-            if (m_Property.GenerationProperty.CreateFallbackForBonesWithoutMesh)
+            foreach (var boneToFix in bonesWithoutMesh)
             {
-                foreach (Transform boneToFix in bonesWithoutMesh)
-                {
-                    var fallbackCollider = CreateDefaultColliderForBone(boneToFix);
+                var fallbackCollider = CreateDefaultColliderForBone(boneToFix);
 
-                    if (fallbackCollider != null)
-                    {
-                        createdColliders.Add(fallbackCollider);
-                    }
+                if (fallbackCollider != null)
+                {
+                    createdColliders.Add(fallbackCollider);
                 }
             }
 
             Debug.Log($"Collider generation complete. Created {createdColliders.Count} colliders.");
+
             return createdColliders;
         }
 
