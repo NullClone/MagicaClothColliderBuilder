@@ -161,16 +161,25 @@ namespace MagicaClothColliderBuilder
         {
             if (jobs == null || jobs.Count == 0) return;
 
-            var countdownEvent = new CountdownEvent(jobs.Count);
-
-            foreach (var job in jobs)
+            using (var countdownEvent = new CountdownEvent(jobs.Count))
             {
-                job.m_CountdownEvent = countdownEvent;
+                foreach (var job in jobs)
+                {
+                    job.m_CountdownEvent = countdownEvent;
 
-                ThreadPool.QueueUserWorkItem(job.Execute);
+                    if (!ThreadPool.QueueUserWorkItem(job.Execute))
+                    {
+                        // Signal immediately so the wait count stays consistent when queueing fails.
+                        countdownEvent.Signal();
+                        Debug.LogError($"Failed to queue collider generation job for bone '{job.TargetBone.name}'.");
+                    }
+                }
+
+                if (!countdownEvent.Wait(System.TimeSpan.FromSeconds(30.0f)))
+                {
+                    Debug.LogError("Collider generation jobs timed out after 30 seconds.");
+                }
             }
-
-            countdownEvent.Wait();
         }
 
         private List<MagicaCapsuleCollider> CreateCollidersFromResults(List<ColliderGenerationJob> jobs)

@@ -193,7 +193,12 @@ namespace MagicaClothColliderBuilder
 
             for (int i = 0; i < m_LineList.Length; ++i)
             {
-                m_UsedVertexList[m_LineList[i]] = true;
+                int vertexIndex = m_LineList[i];
+
+                if (vertexIndex >= 0 && vertexIndex < m_UsedVertexList.Length)
+                {
+                    m_UsedVertexList[vertexIndex] = true;
+                }
             }
         }
     }

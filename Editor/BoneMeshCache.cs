@@ -59,13 +59,17 @@ namespace MagicaClothColliderBuilder
             {
                 if (skinnedMeshRenderer.bones != null)
                 {
-                    var boneWeights = skinnedMeshRenderer.sharedMesh.boneWeights;
+                    var sharedMesh = skinnedMeshRenderer.sharedMesh;
+
+                    if (sharedMesh == null) continue;
+
+                    var boneWeights = sharedMesh.boneWeights;
 
                     if (boneWeights == null || boneWeights.Length == 0) continue;
 
                     m_MeshBoneCount += skinnedMeshRenderer.bones.Length;
-                    m_MeshVertexCount += skinnedMeshRenderer.sharedMesh.vertexCount;
-                    m_MeshTriangleCount += skinnedMeshRenderer.sharedMesh.triangles.Length;
+                    m_MeshVertexCount += sharedMesh.vertexCount;
+                    m_MeshTriangleCount += sharedMesh.triangles.Length;
                 }
             }
 
@@ -94,11 +98,15 @@ namespace MagicaClothColliderBuilder
             {
                 if (skinnedMeshRenderer.bones != null)
                 {
+                    var sharedMesh = skinnedMeshRenderer.sharedMesh;
+
+                    if (sharedMesh == null) continue;
+
                     var bones = skinnedMeshRenderer.bones;
-                    var bindPoses = skinnedMeshRenderer.sharedMesh.bindposes;
-                    var boneWeights = skinnedMeshRenderer.sharedMesh.boneWeights;
-                    var vertices = skinnedMeshRenderer.sharedMesh.vertices;
-                    var triangles = skinnedMeshRenderer.sharedMesh.triangles;
+                    var bindPoses = sharedMesh.bindposes;
+                    var boneWeights = sharedMesh.boneWeights;
+                    var vertices = sharedMesh.vertices;
+                    var triangles = sharedMesh.triangles;
 
                     if (boneWeights == null || boneWeights.Length == 0) continue;
 
@@ -140,7 +148,11 @@ namespace MagicaClothColliderBuilder
             Array.Clear(m_TargetVertices, 0, m_TargetVertices.Length);
             Array.Clear(m_PassedVertices, 0, m_PassedVertices.Length);
             Array.Clear(m_ProcessedVertices, 0, m_ProcessedVertices.Length);
-            Array.Clear(m_RedirectIndices, 0, m_RedirectIndices.Length);
+
+            for (int i = 0; i < m_RedirectIndices.Length; ++i)
+            {
+                m_RedirectIndices[i] = -1;
+            }
 
             for (int i = 0; i < m_BoneIndices.Length; ++i)
             {

@@ -229,6 +229,11 @@ namespace MagicaClothColliderBuilder
 
                 int replicateBoneIndex = GetReplicateBoneIndex(index0, index1, index2, pv0, pv1, pv2, boneIndices);
 
+                if (replicateBoneIndex < 0)
+                {
+                    continue;
+                }
+
                 if (boneIndices[index0] == -1) boneIndices[index0] = replicateBoneIndex;
                 if (boneIndices[index1] == -1) boneIndices[index1] = replicateBoneIndex;
                 if (boneIndices[index2] == -1) boneIndices[index2] = replicateBoneIndex;
@@ -318,37 +323,70 @@ namespace MagicaClothColliderBuilder
         private void RebuildLocalMesh(List<int> passedTriangles)
         {
             var passedVertex = m_BoneMeshCache.PassedVertices;
+            var boneIndices = m_BoneMeshCache.BoneIndices;
+            var redirectIndex = m_BoneMeshCache.RedirectIndices;
+
+            for (int i = 0; i < redirectIndex.Length; ++i)
+            {
+                redirectIndex[i] = -1;
+            }
+
             int remakeVertexCount = 0;
 
             for (int i = 0; i < m_MeshVertexCount; ++i)
             {
-                if (passedVertex[i])
+                if (!passedVertex[i]) continue;
+
+                int boneIndex = boneIndices[i];
+
+                if (boneIndex < 0 || boneIndex >= m_MeshBindPoses.Length)
                 {
-                    ++remakeVertexCount;
+                    passedVertex[i] = false;
+                    continue;
                 }
+
+                ++remakeVertexCount;
             }
 
             var remakeVertices = new Vector3[remakeVertexCount];
-            var boneIndices = m_BoneMeshCache.BoneIndices;
-            var redirectIndex = m_BoneMeshCache.RedirectIndices;
 
             for (int i = 0, index = 0; i < m_MeshVertexCount; ++i)
             {
                 if (!passedVertex[i]) continue;
 
-                Matrix4x4 matrix = m_MeshBindPoses[boneIndices[i]];
+                int boneIndex = boneIndices[i];
+
+                if (boneIndex < 0 || boneIndex >= m_MeshBindPoses.Length)
+                {
+                    continue;
+                }
+
+                Matrix4x4 matrix = m_MeshBindPoses[boneIndex];
                 remakeVertices[index] = matrix.MultiplyPoint(m_MeshVertices[i]);
                 redirectIndex[i] = index;
                 ++index;
             }
 
-            for (int i = 0; i < passedTriangles.Count; ++i)
+            var remappedTriangles = new List<int>(passedTriangles.Count);
+
+            for (int i = 0; i + 2 < passedTriangles.Count; i += 3)
             {
-                passedTriangles[i] = redirectIndex[passedTriangles[i]];
+                int index0 = redirectIndex[passedTriangles[i + 0]];
+                int index1 = redirectIndex[passedTriangles[i + 1]];
+                int index2 = redirectIndex[passedTriangles[i + 2]];
+
+                if (index0 < 0 || index1 < 0 || index2 < 0)
+                {
+                    continue;
+                }
+
+                remappedTriangles.Add(index0);
+                remappedTriangles.Add(index1);
+                remappedTriangles.Add(index2);
             }
 
             m_BoneVertices = remakeVertices;
-            m_BoneTriangles = passedTriangles.ToArray();
+            m_BoneTriangles = remappedTriangles.ToArray();
         }
     }
 }

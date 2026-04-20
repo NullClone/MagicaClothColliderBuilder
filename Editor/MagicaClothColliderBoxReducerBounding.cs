@@ -4,7 +4,7 @@ namespace MagicaClothColliderBuilder
 {
     public partial class MagicaClothColliderBoxReducer
     {
-        private static MinBounding m_MinBounding;
+        private MinBounding m_MinBounding;
 
         private static void ComputeMinThickness(ref float boxA, ref float boxB, float minThickness)
         {
@@ -54,7 +54,7 @@ namespace MagicaClothColliderBuilder
             return (boxA + boxB) * 0.5f;
         }
 
-        private static void ProcessBoundingBoxAabbRange(Vector3[] vertices, bool[] usedVertices, Vector3 minCenter, Vector3Int beginEuler, Vector3Int endEuler, int stepEuler)
+        private void ProcessBoundingBoxAabbRange(Vector3[] vertices, bool[] usedVertices, Vector3 minCenter, Vector3Int beginEuler, Vector3Int endEuler, int stepEuler)
         {
             if (vertices == null || usedVertices == null) return;
 
@@ -161,6 +161,8 @@ namespace MagicaClothColliderBuilder
                 beginEuler.z = 0;
                 endEuler.z = 1;
             }
+
+            m_MinBounding = new MinBounding();
 
             ProcessBoundingBoxAabbRange(m_VertexList, m_UsedVertexList, minCenter, beginEuler, endEuler, coarseStep);
 
