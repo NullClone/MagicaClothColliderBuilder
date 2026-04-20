@@ -293,8 +293,22 @@ namespace MagicaClothColliderBuilder
                     }
                 }
 
-                var generator = new ColliderGenerator(m_TargetAvatarRoot, m_Settings);
-                m_GeneratedColliders = generator.Process();
+                var generator = new ColliderGenerator(
+                    m_TargetAvatarRoot,
+                    m_Settings,
+                    (progress, message) => EditorUtility.DisplayProgressBar(
+                        "MagicaCloth2 Collider Builder",
+                        message,
+                        progress));
+
+                try
+                {
+                    m_GeneratedColliders = generator.Process();
+                }
+                finally
+                {
+                    EditorUtility.ClearProgressBar();
+                }
             }
 
             if (m_GeneratedColliders != null && m_GeneratedColliders.Count > 0)

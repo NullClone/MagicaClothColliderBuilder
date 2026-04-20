@@ -1,4 +1,5 @@
 using MagicaCloth2;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
@@ -10,17 +11,21 @@ namespace MagicaClothColliderBuilder
         private readonly GameObject m_AvatarRoot;
         private readonly SABoneColliderProperty m_Property;
         private readonly Animator m_Animator;
+        private readonly Action<float, string> m_ProgressReporter;
 
-        public ColliderGenerator(GameObject avatarRoot, SABoneColliderProperty properties)
+        public ColliderGenerator(GameObject avatarRoot, SABoneColliderProperty properties, Action<float, string> progressReporter = null)
         {
             m_AvatarRoot = avatarRoot;
             m_Property = properties;
             m_Animator = avatarRoot.GetComponent<Animator>();
+            m_ProgressReporter = progressReporter;
         }
 
         public List<MagicaCapsuleCollider> Process()
         {
             var createdColliders = new List<MagicaCapsuleCollider>();
+
+            ReportProgress(0.02f, "Validating avatar settings...");
 
             if (m_Animator == null || m_Animator.avatar == null || !m_Animator.avatar.isHuman)
             {
@@ -34,6 +39,8 @@ namespace MagicaClothColliderBuilder
                 return createdColliders;
             }
 
+            ReportProgress(0.10f, "Collecting humanoid bones...");
+
             var bonesToProcess = CollectHumanBones();
 
             if (bonesToProcess.Count == 0)
@@ -41,6 +48,8 @@ namespace MagicaClothColliderBuilder
                 Debug.LogWarning("No human bones found to process.");
                 return createdColliders;
             }
+
+            ReportProgress(0.18f, "Building mesh cache...");
 
             var boneMeshCache = new BoneMeshCache();
             boneMeshCache.Process(m_AvatarRoot);
@@ -54,8 +63,13 @@ namespace MagicaClothColliderBuilder
             var generationJobs = new List<ColliderGenerationJob>();
             var bonesWithoutMesh = new List<Transform>();
 
-            foreach (Transform boneTransform in bonesToProcess)
+            ReportProgress(0.26f, "Preparing per-bone jobs...");
+
+            int boneCount = bonesToProcess.Count;
+
+            for (int i = 0; i < boneCount; ++i)
             {
+                Transform boneTransform = bonesToProcess[i];
                 var job = new ColliderGenerationJob(boneTransform.gameObject, m_Property, boneMeshCache);
 
                 if (job.Prepare())
@@ -66,25 +80,46 @@ namespace MagicaClothColliderBuilder
                 {
                     bonesWithoutMesh.Add(boneTransform);
                 }
+
+                if (boneCount > 0 && ((i & 3) == 0 || i + 1 == boneCount))
+                {
+                    float t = (i + 1) / (float)boneCount;
+                    ReportProgress(Mathf.Lerp(0.26f, 0.58f, t), $"Preparing jobs ({i + 1}/{boneCount})...");
+                }
             }
 
+            ReportProgress(0.62f, "Reducing meshes in parallel...");
             ExecuteJobs(generationJobs);
 
+            ReportProgress(0.74f, "Creating colliders...");
             createdColliders.AddRange(CreateCollidersFromResults(generationJobs));
 
-            foreach (var boneToFix in bonesWithoutMesh)
+            for (int i = 0; i < bonesWithoutMesh.Count; ++i)
             {
+                var boneToFix = bonesWithoutMesh[i];
                 var fallbackCollider = CreateDefaultColliderForBone(boneToFix);
 
                 if (fallbackCollider != null)
                 {
                     createdColliders.Add(fallbackCollider);
                 }
+
+                if (bonesWithoutMesh.Count > 0 && ((i & 3) == 0 || i + 1 == bonesWithoutMesh.Count))
+                {
+                    float t = (i + 1) / (float)bonesWithoutMesh.Count;
+                    ReportProgress(Mathf.Lerp(0.90f, 0.98f, t), $"Creating fallback colliders ({i + 1}/{bonesWithoutMesh.Count})...");
+                }
             }
 
             Debug.Log($"Collider generation complete. Created {createdColliders.Count} colliders.");
+            ReportProgress(1.0f, "Done.");
 
             return createdColliders;
+        }
+
+        private void ReportProgress(float progress, string message)
+        {
+            m_ProgressReporter?.Invoke(Mathf.Clamp01(progress), message ?? string.Empty);
         }
 
         private List<Transform> CollectHumanBones()
@@ -186,8 +221,15 @@ namespace MagicaClothColliderBuilder
         {
             var createdColliders = new List<MagicaCapsuleCollider>();
 
-            foreach (var job in jobs)
+            if (jobs == null || jobs.Count == 0)
             {
+                return createdColliders;
+            }
+
+            for (int i = 0; i < jobs.Count; ++i)
+            {
+                var job = jobs[i];
+
                 if (!ColliderCapsuleFitter.TryFitCapsule(job, out var fitResult)) continue;
 
                 var collider = CreateColliderGameObject(job, fitResult);
@@ -195,6 +237,12 @@ namespace MagicaClothColliderBuilder
                 if (collider != null)
                 {
                     createdColliders.Add(collider);
+                }
+
+                if ((i & 3) == 0 || i + 1 == jobs.Count)
+                {
+                    float t = (i + 1) / (float)jobs.Count;
+                    ReportProgress(Mathf.Lerp(0.74f, 0.90f, t), $"Fitting colliders ({i + 1}/{jobs.Count})...");
                 }
             }
 
