@@ -261,7 +261,35 @@ namespace MagicaClothColliderBuilder
                 centerCandidates.Add(offsetCenter);
             }
 
-            centerCandidates.Add(new Vector3(0.0f, center.y, 0.0f));
+            if (settings.AnchorOuterStartToHeadTransform)
+            {
+                // Keep transform-anchored candidate path available only when the setting is enabled.
+                centerCandidates.Add(new Vector3(0.0f, center.y, 0.0f));
+            }
+
+            var sortedYValues = new List<float>(GetAxisValues(vertices, 1));
+            sortedYValues.Sort();
+            var minYCandidates = new float[lowerPercentiles.Length];
+            var maxYCandidates = new float[upperPercentiles.Length];
+
+            for (int p = 0; p < lowerPercentiles.Length; ++p)
+            {
+                float minY;
+                float maxY;
+
+                if (!TryGetAreaWeightedAxisPercentile(vertices, job.Triangles, 1, lowerPercentiles[p], out minY))
+                {
+                    minY = PercentileFromSorted(sortedYValues, lowerPercentiles[p]);
+                }
+
+                if (!TryGetAreaWeightedAxisPercentile(vertices, job.Triangles, 1, upperPercentiles[p], out maxY))
+                {
+                    maxY = PercentileFromSorted(sortedYValues, upperPercentiles[p]);
+                }
+
+                minYCandidates[p] = minY;
+                maxYCandidates[p] = maxY;
+            }
 
             bool hasCandidate = false;
             float bestScore = float.MaxValue;
@@ -272,18 +300,8 @@ namespace MagicaClothColliderBuilder
 
                 for (int p = 0; p < lowerPercentiles.Length; ++p)
                 {
-                    float minY;
-                    float maxY;
-
-                    if (!TryGetAreaWeightedAxisPercentile(vertices, job.Triangles, 1, lowerPercentiles[p], out minY))
-                    {
-                        minY = Percentile(new List<float>(GetAxisValues(vertices, 1)), lowerPercentiles[p]);
-                    }
-
-                    if (!TryGetAreaWeightedAxisPercentile(vertices, job.Triangles, 1, upperPercentiles[p], out maxY))
-                    {
-                        maxY = Percentile(new List<float>(GetAxisValues(vertices, 1)), upperPercentiles[p]);
-                    }
+                    float minY = minYCandidates[p];
+                    float maxY = maxYCandidates[p];
 
                     if (maxY <= minY)
                     {
@@ -336,6 +354,28 @@ namespace MagicaClothColliderBuilder
                                         RadiusAtMax = radius,
                                         ReverseDirection = false,
                                     };
+                                }
+
+                                if (settings.AnchorOuterStartToHeadTransform)
+                                {
+                                    Vector3 anchoredCenter = new Vector3(0.0f, (totalLength * 0.5f) + radius, 0.0f);
+                                    float anchoredScore = CalculateUniformCapsuleScore(vertices, anchoredCenter, totalLength, radius);
+
+                                    if (!hasCandidate || anchoredScore < bestScore)
+                                    {
+                                        hasCandidate = true;
+                                        bestScore = anchoredScore;
+                                        fitResult = new CapsuleFitResult
+                                        {
+                                            LocalRotation = Quaternion.identity,
+                                            Direction = MagicaCapsuleCollider.Direction.Y,
+                                            Center = anchoredCenter,
+                                            Length = totalLength,
+                                            RadiusAtMin = radius,
+                                            RadiusAtMax = radius,
+                                            ReverseDirection = false,
+                                        };
+                                    }
                                 }
                             }
                         }
