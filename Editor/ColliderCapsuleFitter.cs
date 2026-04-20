@@ -182,22 +182,26 @@ namespace MagicaClothColliderBuilder
                 Percentile(yValues, 50.0f),
                 Percentile(zValues, 50.0f));
 
-            var distanceValues = new List<float>(vertices.Length);
+            float weightedCenterX;
+            float weightedCenterY;
+            float weightedCenterZ;
 
-            for (int i = 0; i < vertices.Length; ++i)
+            if (!TryGetAreaWeightedAxisPercentile(vertices, job.Triangles, 0, 50.0f, out weightedCenterX))
             {
-                distanceValues.Add((vertices[i] - center).magnitude);
+                weightedCenterX = center.x;
             }
 
-            float baseRadius;
-
-            if (!TryGetAreaWeightedDistancePercentile(vertices, job.Triangles, center, settings.RadiusPercentile, out baseRadius))
+            if (!TryGetAreaWeightedAxisPercentile(vertices, job.Triangles, 1, 50.0f, out weightedCenterY))
             {
-                baseRadius = Percentile(distanceValues, settings.RadiusPercentile);
+                weightedCenterY = center.y;
             }
 
-            float radius = baseRadius * settings.RadiusScale;
-            radius = Mathf.Clamp(radius, settings.MinRadius, settings.MaxRadius);
+            if (!TryGetAreaWeightedAxisPercentile(vertices, job.Triangles, 2, 50.0f, out weightedCenterZ))
+            {
+                weightedCenterZ = center.z;
+            }
+
+            center = new Vector3(weightedCenterX, weightedCenterY, weightedCenterZ);
 
             Vector3 faceDir = headTransform.InverseTransformDirection(headTransform.root != null ? headTransform.root.forward : Vector3.forward);
 
@@ -216,30 +220,130 @@ namespace MagicaClothColliderBuilder
             }
 
             localUp.Normalize();
-            float length = Mathf.Clamp(radius * settings.LengthRatio, 0.005f, radius * 0.6f);
 
-            if (settings.AnchorOuterStartToHeadTransform)
+            Vector3 offsetCenter = center;
+
+            if (settings.UseFaceForwardOffsetWhenNotAnchored)
             {
-                // Keep the outermost tip (not sphere center) of the start cap at the Head transform.
-                // tip_y = center.y - length/2 - radius = 0  =>  center.y = length/2 + radius
-                center = new Vector3(0.0f, length * 0.5f + radius, 0.0f);
-            }
-            else if (settings.UseFaceForwardOffsetWhenNotAnchored)
-            {
-                center += (faceDir * settings.ForwardOffset) + (localUp * settings.UpOffset);
+                offsetCenter += (faceDir * settings.ForwardOffset) + (localUp * settings.UpOffset);
             }
 
-            fitResult = new CapsuleFitResult
+            return TryOptimizeHeadCapsule(job, settings, center, offsetCenter, out fitResult);
+        }
+
+        private static bool TryOptimizeHeadCapsule(ColliderGenerationJob job, HeadFitProperty settings, Vector3 center, Vector3 offsetCenter, out CapsuleFitResult fitResult)
+        {
+            fitResult = default;
+
+            var vertices = job.Vertices;
+
+            if (vertices == null || vertices.Length < 4)
             {
-                LocalRotation = Quaternion.identity,
-                Direction = MagicaCapsuleCollider.Direction.Y,
-                Center = center,
-                Length = length,
-                RadiusAtMin = radius,
-                RadiusAtMax = radius,
-                ReverseDirection = false,
+                return false;
+            }
+
+            float[] lowerPercentiles = new float[] { 1.0f, 3.0f, 5.0f, 8.0f, 10.0f };
+            float[] upperPercentiles = new float[] { 99.0f, 97.0f, 95.0f, 92.0f, 90.0f };
+            float[] radiusPercentiles = new float[]
+            {
+                Mathf.Clamp(settings.RadiusPercentile - 6.0f, 45.0f, 98.0f),
+                Mathf.Clamp(settings.RadiusPercentile - 3.0f, 45.0f, 98.0f),
+                Mathf.Clamp(settings.RadiusPercentile, 45.0f, 98.0f),
+                Mathf.Clamp(settings.RadiusPercentile + 3.0f, 45.0f, 98.0f),
             };
-            return true;
+            float[] lengthScales = new float[] { 0.7f, 0.82f, 0.94f, 1.0f };
+            float[] centerYRatios = new float[] { 0.45f, 0.5f, 0.55f };
+
+            var centerCandidates = new List<Vector3>(3) { center };
+
+            if ((offsetCenter - center).sqrMagnitude > 1.0e-10f)
+            {
+                centerCandidates.Add(offsetCenter);
+            }
+
+            centerCandidates.Add(new Vector3(0.0f, center.y, 0.0f));
+
+            bool hasCandidate = false;
+            float bestScore = float.MaxValue;
+
+            for (int c = 0; c < centerCandidates.Count; ++c)
+            {
+                Vector3 centerSeed = centerCandidates[c];
+
+                for (int p = 0; p < lowerPercentiles.Length; ++p)
+                {
+                    float minY;
+                    float maxY;
+
+                    if (!TryGetAreaWeightedAxisPercentile(vertices, job.Triangles, 1, lowerPercentiles[p], out minY))
+                    {
+                        minY = Percentile(new List<float>(GetAxisValues(vertices, 1)), lowerPercentiles[p]);
+                    }
+
+                    if (!TryGetAreaWeightedAxisPercentile(vertices, job.Triangles, 1, upperPercentiles[p], out maxY))
+                    {
+                        maxY = Percentile(new List<float>(GetAxisValues(vertices, 1)), upperPercentiles[p]);
+                    }
+
+                    if (maxY <= minY)
+                    {
+                        continue;
+                    }
+
+                    float span = maxY - minY;
+
+                    for (int cy = 0; cy < centerYRatios.Length; ++cy)
+                    {
+                        float centerY = Mathf.Lerp(minY, maxY, centerYRatios[cy]);
+                        Vector3 candidateCenter = new Vector3(centerSeed.x, centerY, centerSeed.z);
+
+                        for (int rp = 0; rp < radiusPercentiles.Length; ++rp)
+                        {
+                            float baseRadius;
+
+                            if (!TryGetAreaWeightedDistancePercentile(vertices, job.Triangles, candidateCenter, radiusPercentiles[rp], out baseRadius))
+                            {
+                                var distanceValues = new List<float>(vertices.Length);
+
+                                for (int vertexIndex = 0; vertexIndex < vertices.Length; ++vertexIndex)
+                                {
+                                    distanceValues.Add((vertices[vertexIndex] - candidateCenter).magnitude);
+                                }
+
+                                baseRadius = Percentile(distanceValues, radiusPercentiles[rp]);
+                            }
+
+                            float radius = Mathf.Clamp(baseRadius * settings.RadiusScale, settings.MinRadius, settings.MaxRadius);
+
+                            for (int ls = 0; ls < lengthScales.Length; ++ls)
+                            {
+                                float totalLength = Mathf.Max(radius * 2.0f, span * lengthScales[ls]);
+                                totalLength = Mathf.Max(totalLength, 0.005f);
+
+                                float score = CalculateUniformCapsuleScore(vertices, candidateCenter, totalLength, radius);
+
+                                if (!hasCandidate || score < bestScore)
+                                {
+                                    hasCandidate = true;
+                                    bestScore = score;
+                                    fitResult = new CapsuleFitResult
+                                    {
+                                        LocalRotation = Quaternion.identity,
+                                        Direction = MagicaCapsuleCollider.Direction.Y,
+                                        Center = candidateCenter,
+                                        Length = totalLength,
+                                        RadiusAtMin = radius,
+                                        RadiusAtMax = radius,
+                                        ReverseDirection = false,
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return hasCandidate;
         }
 
         private static bool TryFitLimbCapsule(ColliderGenerationJob job, Vector3 childHint, BoneFitRole boneRole, ref CapsuleFitResult fitResult)
@@ -996,6 +1100,107 @@ namespace MagicaClothColliderBuilder
             float overflowMean = overflowList.Count > 0 ? (overflowSum / overflowList.Count) : 0.0f;
             float compactness = (startRadius + endRadius) / Mathf.Max(length, 0.001f);
             return (overflow95 * 4.0f) + (overflowMean * 2.0f) + (compactness * 0.15f);
+        }
+
+        private static float CalculateUniformCapsuleScore(Vector3[] vertices, Vector3 center, float totalLength, float radius)
+        {
+            if (vertices == null || vertices.Length == 0)
+            {
+                return float.MaxValue;
+            }
+
+            float halfLength = totalLength * 0.5f;
+            float cylinderHalf = Mathf.Max(0.0f, halfLength - radius);
+            Vector3 segmentA = center + (Vector3.down * cylinderHalf);
+            Vector3 segmentB = center + (Vector3.up * cylinderHalf);
+            var overflowList = new List<float>(vertices.Length);
+            float overflowSum = 0.0f;
+
+            for (int i = 0; i < vertices.Length; ++i)
+            {
+                Vector3 vertex = vertices[i];
+                Vector3 segment = segmentB - segmentA;
+                float segmentLengthSq = segment.sqrMagnitude;
+                float t = segmentLengthSq > 1.0e-10f
+                    ? Mathf.Clamp01(Vector3.Dot(vertex - segmentA, segment) / segmentLengthSq)
+                    : 0.0f;
+                Vector3 closest = Vector3.Lerp(segmentA, segmentB, t);
+                float overflow = Mathf.Max(0.0f, Vector3.Distance(vertex, closest) - radius);
+                overflowList.Add(overflow);
+                overflowSum += overflow;
+            }
+
+            float overflow95 = Percentile(overflowList, 95.0f);
+            float overflowMean = overflowList.Count > 0 ? (overflowSum / overflowList.Count) : 0.0f;
+            float compactness = radius / Mathf.Max(totalLength, 0.001f);
+            return (overflow95 * 4.0f) + (overflowMean * 2.0f) + (compactness * 0.1f);
+        }
+
+        private static bool TryGetAreaWeightedAxisPercentile(Vector3[] vertices, int[] triangles, int axis, float percentile, out float result)
+        {
+            result = 0.0f;
+
+            if (vertices == null || triangles == null || triangles.Length < 3 || axis < 0 || axis > 2)
+            {
+                return false;
+            }
+
+            var values = new List<float>(triangles.Length);
+            var weights = new List<float>(triangles.Length);
+
+            for (int i = 0; i + 2 < triangles.Length; i += 3)
+            {
+                int i0 = triangles[i + 0];
+                int i1 = triangles[i + 1];
+                int i2 = triangles[i + 2];
+
+                if (i0 < 0 || i1 < 0 || i2 < 0 || i0 >= vertices.Length || i1 >= vertices.Length || i2 >= vertices.Length)
+                {
+                    continue;
+                }
+
+                Vector3 v0 = vertices[i0];
+                Vector3 v1 = vertices[i1];
+                Vector3 v2 = vertices[i2];
+                float area = Vector3.Cross(v1 - v0, v2 - v0).magnitude * 0.5f;
+
+                if (area <= 1.0e-12f)
+                {
+                    continue;
+                }
+
+                values.Add(v0[axis]);
+                weights.Add(area);
+                values.Add(v1[axis]);
+                weights.Add(area);
+                values.Add(v2[axis]);
+                weights.Add(area);
+            }
+
+            if (values.Count == 0)
+            {
+                return false;
+            }
+
+            result = WeightedPercentile(values, weights, percentile);
+            return true;
+        }
+
+        private static float[] GetAxisValues(Vector3[] vertices, int axis)
+        {
+            if (vertices == null || axis < 0 || axis > 2)
+            {
+                return new float[0];
+            }
+
+            var values = new float[vertices.Length];
+
+            for (int i = 0; i < vertices.Length; ++i)
+            {
+                values[i] = vertices[i][axis];
+            }
+
+            return values;
         }
 
         private static bool TryGetAreaWeightedDistancePercentile(Vector3[] vertices, int[] triangles, Vector3 center, float percentile, out float weightedRadius)
