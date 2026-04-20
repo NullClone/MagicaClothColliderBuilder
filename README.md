@@ -9,7 +9,7 @@ MagicaCloth2用のコライダーを自動生成するツールです。
 
 ## Installation
 
-1. リリースにあるUnityパッケージをUnityにインポート
+1. [リリース](https://github.com/NullClone/MagicaClothColliderBuilder/releases)からUnityパッケージをダウンロードし、Unityにインポート
 2. `Tools > Magica Cloth2 > Collider Builder` を開く
 
 ## Usage
@@ -26,6 +26,7 @@ Cleanup Existing Collidersを押すことでコライダーを削除できます
 - 検証には標準的なアバターのみを使用しています。
 - MagicaCloth2でのみで機能します。
 - 必ずしも正しい生成結果になるとは限りません。
+- こちらのツールはSAColliderBuilderを参考にしています。
 
 ## License
 
