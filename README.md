@@ -1,4 +1,4 @@
-# MagicaCloth Collider Builder
+# MagicaCloth2 Collider Builder
 
 MagicaCloth2用のコライダーを自動生成するツールです。
 
@@ -24,6 +24,7 @@ Cleanup Existing Collidersを押すことでコライダーを削除できます
 
 - Unity 6.0での動作を確認済みです。
 - 検証には標準的なアバターのみを使用しています。
+- MagicaCloth2でのみで機能します。
 - 必ずしも正しい生成結果になるとは限りません。
 
 ## License

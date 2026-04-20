@@ -28,7 +28,7 @@ namespace MagicaClothColliderBuilder
         public static void ShowWindow()
         {
             var window = GetWindow<MagicaClothColliderBuilderWindow>();
-            window.titleContent = new GUIContent("MagicaCloth Collider Builder");
+            window.titleContent = new GUIContent("MagicaCloth2 Collider Builder");
             window.minSize = new Vector2(540f, 760f);
             window.Show();
         }

@@ -1,0 +1,9 @@
+{
+  "name": "com.null.mc2-collider-builder",
+  "version": "1.0.0",
+  "displayName": "MagicaCloth2 Collider Builder",
+  "unity": "6000.0",
+  "license": "MIT",
+  "licenseUrl": "https://github.com/NullClone/MagicaClothColliderBuilder/blob/main/LICENSE.md",
+  "author": "NullClone"
+}
