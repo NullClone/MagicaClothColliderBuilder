@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 - SkinnedMeshRendererの選択機能を追加
-- 頭の処理を大幅に最適化
+- 頭のコライダー処理を大幅に最適化
 
 ### Changed
 - 大規模なリファクタリングを実施
@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 - ローディングバーを追加
-- 頭のコライダー生成の精度を向上
+- 頭のコライダー処理の精度を向上
 
 ## [1.0.0-alpha] - 2026-4-20
 
