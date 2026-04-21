@@ -159,6 +159,7 @@ namespace MagicaClothColliderBuilder
             DrawCard("Head", () =>
             {
                 HeadFitProperty head = m_Settings.HeadFitProperty;
+                head.FitMethod = (HeadFitMethod)EditorGUILayout.EnumPopup("Fit Method", head.FitMethod);
                 head.RadiusPercentile = EditorGUILayout.Slider("Radius Percentile", head.RadiusPercentile, 40f, 95f);
                 head.RadiusScale = EditorGUILayout.Slider("Radius Scale", head.RadiusScale, 0.5f, 1.5f);
                 head.MinRadius = EditorGUILayout.Slider("Min Radius", head.MinRadius, 0.01f, 0.3f);

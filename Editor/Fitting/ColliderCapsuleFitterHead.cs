@@ -20,6 +20,11 @@ namespace MagicaClothColliderBuilder
             var settings = job.Property.HeadFitProperty;
             var headTransform = job.TargetBone.transform;
 
+            if (settings.FitMethod == HeadFitMethod.FastBounds)
+            {
+                return TryFitHeadFast(job, settings, headTransform, out fitResult);
+            }
+
             var xValues = new List<float>(vertices.Length);
             var yValues = new List<float>(vertices.Length);
             var zValues = new List<float>(vertices.Length);
@@ -81,6 +86,86 @@ namespace MagicaClothColliderBuilder
             }
 
             return TryFitHeadBest(job, settings, center, offsetCenter, out fitResult);
+        }
+
+        private static bool TryFitHeadFast(ColliderGenerationJob job, HeadFitProperty settings, Transform headTransform, out CapsuleFitResult fitResult)
+        {
+            fitResult = default;
+
+            var vertices = job.Vertices;
+
+            if (vertices == null || vertices.Length < 4)
+            {
+                return false;
+            }
+
+            float minX = float.MaxValue;
+            float minY = float.MaxValue;
+            float minZ = float.MaxValue;
+            float maxX = float.MinValue;
+            float maxY = float.MinValue;
+            float maxZ = float.MinValue;
+
+            for (int i = 0; i < vertices.Length; ++i)
+            {
+                Vector3 v = vertices[i];
+
+                if (v.x < minX) minX = v.x;
+                if (v.y < minY) minY = v.y;
+                if (v.z < minZ) minZ = v.z;
+                if (v.x > maxX) maxX = v.x;
+                if (v.y > maxY) maxY = v.y;
+                if (v.z > maxZ) maxZ = v.z;
+            }
+
+            Vector3 center = new Vector3(
+                (minX + maxX) * 0.5f,
+                (minY + maxY) * 0.5f,
+                (minZ + maxZ) * 0.5f);
+
+            float halfWidthX = Mathf.Max(0.0f, (maxX - minX) * 0.5f);
+            float halfWidthZ = Mathf.Max(0.0f, (maxZ - minZ) * 0.5f);
+            float baseRadius = Mathf.Max(halfWidthX, halfWidthZ);
+            float radius = Mathf.Clamp(baseRadius * settings.RadiusScale, settings.MinRadius, settings.MaxRadius);
+            float length = Mathf.Clamp(radius * settings.LengthRatio, 0.005f, radius * 0.6f);
+
+            if (settings.AnchorOuterStartToHeadTransform)
+            {
+                center = new Vector3(0.0f, (length * 0.5f) + radius, 0.0f);
+            }
+            else if (settings.UseFaceForwardOffsetWhenNotAnchored)
+            {
+                Vector3 faceDir = headTransform.InverseTransformDirection(headTransform.root != null ? headTransform.root.forward : Vector3.forward);
+
+                if (faceDir.sqrMagnitude <= 1.0e-8f)
+                {
+                    faceDir = Vector3.forward;
+                }
+
+                faceDir.Normalize();
+
+                Vector3 localUp = headTransform.InverseTransformDirection(headTransform.root != null ? headTransform.root.up : Vector3.up);
+
+                if (localUp.sqrMagnitude <= 1.0e-8f)
+                {
+                    localUp = Vector3.up;
+                }
+
+                localUp.Normalize();
+                center += (faceDir * settings.ForwardOffset) + (localUp * settings.UpOffset);
+            }
+
+            fitResult = new CapsuleFitResult
+            {
+                LocalRotation = Quaternion.identity,
+                Direction = MagicaCapsuleCollider.Direction.Y,
+                Center = center,
+                Length = length,
+                RadiusAtMin = radius,
+                RadiusAtMax = radius,
+                ReverseDirection = false,
+            };
+            return true;
         }
 
         internal static bool TryFitHeadBest(ColliderGenerationJob job, HeadFitProperty settings, Vector3 center, Vector3 offsetCenter, out CapsuleFitResult fitResult)

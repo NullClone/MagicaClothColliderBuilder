@@ -27,16 +27,11 @@ namespace MagicaClothColliderBuilder
     [Serializable]
     public class ReducerProperty
     {
-        public bool EnableRotationSearch = false;
         public Vector3 Scale = Vector3.one;
         public Vector3 MinThickness = new Vector3(0.01f, 0.01f, 0.01f);
-        public bool OptimizeRotationX = true;
-        public bool OptimizeRotationY = true;
-        public bool OptimizeRotationZ = true;
 
         [HideInInspector] public ElementType ScaleElementType = ElementType.X;
         [HideInInspector] public ElementType MinThicknessElementType = ElementType.X;
-        [HideInInspector] public ElementType OptimizeRotationElementType = ElementType.X;
         [HideInInspector] public Vector3 Offset = Vector3.zero;
         [HideInInspector] public Vector3 ThicknessA = Vector3.zero;
         [HideInInspector] public Vector3 ThicknessB = Vector3.zero;
@@ -98,6 +93,7 @@ namespace MagicaClothColliderBuilder
     [Serializable]
     public class HeadFitProperty
     {
+        public HeadFitMethod FitMethod = HeadFitMethod.FastBounds;
         public bool AnchorOuterStartToHeadTransform = true;
         public bool UseFaceForwardOffsetWhenNotAnchored = true;
         public float RadiusPercentile = 72.0f;
@@ -208,5 +204,11 @@ namespace MagicaClothColliderBuilder
     {
         RootRight,
         RootForward,
+    }
+
+    public enum HeadFitMethod
+    {
+        FastBounds,
+        AccuratePercentile,
     }
 }
