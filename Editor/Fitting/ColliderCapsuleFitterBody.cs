@@ -24,7 +24,7 @@ namespace MagicaClothColliderBuilder
 
             if (bodySettings.ProjectAxisToBodyUpPlane)
             {
-                var bodyUp = GetBodyUpAxisLocal(job.Animator, boneTransform, boneRole);
+                var bodyUp = GetBodyUp(job.Animator, boneTransform, boneRole);
 
                 if (bodyUp.sqrMagnitude > 1.0e-8f)
                 {
@@ -34,7 +34,7 @@ namespace MagicaClothColliderBuilder
 
             if (boneRole == BoneFitRole.Hips && bodySettings.HipsProjectAxisToSpinePlane)
             {
-                var localSpineUp = GetHipsSpineUpAxisLocal(job.Animator, boneTransform);
+                var localSpineUp = GetHipsUp(job.Animator, boneTransform);
 
                 if (localSpineUp.sqrMagnitude > 1.0e-8f)
                 {
@@ -68,7 +68,7 @@ namespace MagicaClothColliderBuilder
 
             if (boneRole == BoneFitRole.Hips)
             {
-                float hipsSpineDistance = GetHipsSpineDistanceLocal(job.Animator, boneTransform);
+                float hipsSpineDistance = GetHipsSpineLen(job.Animator, boneTransform);
                 float maxByBone = hipsSpineDistance > 1.0e-6f
                     ? Mathf.Max(bodySettings.MinLength, hipsSpineDistance * bodySettings.HipsMaxLengthBySpineDistance)
                     : bodySettings.HipsMaxLength;
@@ -76,7 +76,7 @@ namespace MagicaClothColliderBuilder
                 length = Mathf.Min(length, hipsMaxLength);
             }
 
-            if (!TryGetAreaWeightedRadialPercentile(rotated, job.Triangles, bodySettings.RadiusPercentile, out float radius))
+            if (!TryRadialWeighted(rotated, job.Triangles, bodySettings.RadiusPercentile, out float radius))
             {
                 radius = Percentile(radialValues, bodySettings.RadiusPercentile);
             }
@@ -99,7 +99,7 @@ namespace MagicaClothColliderBuilder
         }
 
 
-        private static Vector3 GetHipsSpineUpAxisLocal(Animator animator, Transform hipsTransform)
+        private static Vector3 GetHipsUp(Animator animator, Transform hipsTransform)
         {
             var spine = animator.GetBoneTransform(HumanBodyBones.Spine);
 
@@ -110,11 +110,11 @@ namespace MagicaClothColliderBuilder
             return localSpine.normalized;
         }
 
-        private static Vector3 GetBodyUpAxisLocal(Animator animator, Transform bodyTransform, BoneFitRole boneRole)
+        private static Vector3 GetBodyUp(Animator animator, Transform bodyTransform, BoneFitRole boneRole)
         {
             if (boneRole == BoneFitRole.Hips)
             {
-                return GetHipsSpineUpAxisLocal(animator, bodyTransform);
+                return GetHipsUp(animator, bodyTransform);
             }
 
             Transform upTarget = null;
@@ -145,11 +145,11 @@ namespace MagicaClothColliderBuilder
             return bodyTransform.InverseTransformDirection(bodyTransform.root != null ? bodyTransform.root.up : Vector3.up).normalized;
         }
 
-        private static float GetHipsSpineDistanceLocal(Animator animator, Transform hipsTransform)
+        private static float GetHipsSpineLen(Animator animator, Transform hipsTransform)
         {
             var spine = animator.GetBoneTransform(HumanBodyBones.Spine);
 
-            if (spine == null) return 0.0f;
+            if (spine == null) return 0f;
 
             Vector3 localSpine = hipsTransform.InverseTransformPoint(spine.position);
 

@@ -14,7 +14,7 @@ namespace MagicaClothColliderBuilder
 
             var limbRotation = Quaternion.FromToRotation(Vector3.up, limbAxis);
 
-            if (!TryEvaluateCapsuleFitOnYAxis(
+            if (!TryFitOnY(
                 job.Vertices,
                 Quaternion.Inverse(limbRotation),
                 limbSettings.RadiusPercentile,
@@ -53,14 +53,14 @@ namespace MagicaClothColliderBuilder
             return true;
         }
 
-        internal static bool TryFitBest(ColliderGenerationJob job, Vector3[] vertices, BoneFitRole boneRole, bool hasChildHint, Vector3 childHint, bool hasParentHint, Vector3 parentHint, out CapsuleFitResult fitResult)
+        internal static bool TryFitAuto(ColliderGenerationJob job, Vector3[] vertices, BoneFitRole boneRole, bool hasChildHint, Vector3 childHint, bool hasParentHint, Vector3 parentHint, out CapsuleFitResult fitResult)
         {
             fitResult = default;
 
             float fitPercentile = job.Property.GenericFitProperty.GetFitPercentile(boneRole);
             var axisCandidates = hasChildHint && childHint.sqrMagnitude > 1.0e-8f && !IsBodyRole(boneRole)
-                ? BuildLimbAxisCandidates(vertices, childHint, hasParentHint, parentHint)
-                : BuildAxisCandidates(vertices, hasChildHint, childHint, hasParentHint, parentHint);
+            ? BuildLimbAxes(vertices, childHint, hasParentHint, parentHint)
+            : BuildAxes(vertices, hasChildHint, childHint, hasParentHint, parentHint);
 
             if (axisCandidates.Count == 0)
             {
@@ -97,7 +97,7 @@ namespace MagicaClothColliderBuilder
                 Quaternion inverseRotation = Quaternion.Inverse(candidateRotation);
                 float childAlignment = hasChildHint ? Mathf.Abs(Vector3.Dot(axis, childHintNormalized)) : 0.0f;
 
-                if (!TryEvaluateCapsuleFitOnYAxis(
+                if (!TryFitOnY(
                     vertices,
                     inverseRotation,
                     fitPercentile,
@@ -151,7 +151,7 @@ namespace MagicaClothColliderBuilder
         }
 
 
-        private static bool TryEvaluateCapsuleFitOnYAxis(Vector3[] vertices, Quaternion inverseRotation, float fitPercentile, float boneLengthHint, BoneFitRole boneRole, bool useBoneAxisCenter, SABoneColliderProperty property, out Vector3 center, out float length, out float startRadius, out float endRadius, out float score)
+        private static bool TryFitOnY(Vector3[] vertices, Quaternion inverseRotation, float fitPercentile, float boneLengthHint, BoneFitRole boneRole, bool useBoneAxisCenter, SABoneColliderProperty property, out Vector3 center, out float length, out float startRadius, out float endRadius, out float score)
         {
             center = Vector3.zero;
             length = property.GenericFitProperty.MinLength;
@@ -197,7 +197,7 @@ namespace MagicaClothColliderBuilder
             {
                 var sortedYValues = new List<float>(yValues);
                 sortedYValues.Sort();
-                GetPercentileBoundsFromSorted(sortedYValues, boneLengthHint, boneRole, property.GenericFitProperty, out minY, out maxY, out length);
+                GetBounds(sortedYValues, boneLengthHint, boneRole, property.GenericFitProperty, out minY, out maxY, out length);
                 centerX = Percentile(xValues, 50.0f);
                 centerY = Mathf.Lerp(minY, maxY, property.GenericFitProperty.GetCenterYRatio(boneRole));
                 centerZ = Percentile(zValues, 50.0f);
@@ -269,21 +269,21 @@ namespace MagicaClothColliderBuilder
                 endRadius = Mathf.Max(endRadius, minUpperChestRadius * 0.95f);
             }
 
-            score = CalculateCapsuleScore(rotated, minY, maxY, centerX, centerZ, length, startRadius, endRadius);
+            score = ScoreCapsule(rotated, minY, maxY, centerX, centerZ, length, startRadius, endRadius);
             return true;
         }
 
-        private static void GetPercentileBoundsFromSorted(List<float> sortedYValues, float boneLengthHint, BoneFitRole boneRole, GenericFitProperty settings, out float minY, out float maxY, out float length)
+        private static void GetBounds(List<float> sortedYValues, float boneLengthHint, BoneFitRole boneRole, GenericFitProperty settings, out float minY, out float maxY, out float length)
         {
             var (lowerPercentile, upperPercentile) = settings.GetPercentileBounds(boneRole);
 
-            minY = PercentileFromSorted(sortedYValues, lowerPercentile);
-            maxY = PercentileFromSorted(sortedYValues, upperPercentile);
+            minY = SortedPercentile(sortedYValues, lowerPercentile);
+            maxY = SortedPercentile(sortedYValues, upperPercentile);
 
             if (maxY <= minY)
             {
-                minY = PercentileFromSorted(sortedYValues, 0.0f);
-                maxY = PercentileFromSorted(sortedYValues, 100.0f);
+                minY = SortedPercentile(sortedYValues, 0.0f);
+                maxY = SortedPercentile(sortedYValues, 100.0f);
             }
 
             length = Mathf.Max(settings.MinLength, maxY - minY);
@@ -308,7 +308,7 @@ namespace MagicaClothColliderBuilder
             }
         }
 
-        private static float CalculateCapsuleScore(Vector3[] rotated, float minY, float maxY, float centerX, float centerZ, float length, float startRadius, float endRadius)
+        private static float ScoreCapsule(Vector3[] rotated, float minY, float maxY, float centerX, float centerZ, float length, float startRadius, float endRadius)
         {
             var overflowList = new List<float>(rotated.Length);
             float overflowSum = 0.0f;
@@ -332,7 +332,7 @@ namespace MagicaClothColliderBuilder
             return (overflow95 * 4.0f) + (overflowMean * 2.0f) + (compactness * 0.15f);
         }
 
-        private static float CalculateUniformCapsuleScore(Vector3[] vertices, Vector3 center, float totalLength, float radius)
+        private static float ScoreUniform(Vector3[] vertices, Vector3 center, float totalLength, float radius)
         {
             if (vertices == null || vertices.Length == 0)
             {

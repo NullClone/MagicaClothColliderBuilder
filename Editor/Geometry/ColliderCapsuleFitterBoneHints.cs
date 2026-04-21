@@ -4,7 +4,7 @@ namespace MagicaClothColliderBuilder
 {
     public static partial class ColliderCapsuleFitter
     {
-        private static bool TryGetParentDirectionHint(Transform boneTransform, out Vector3 directionHint)
+        private static bool TryParentHint(Transform boneTransform, out Vector3 directionHint)
         {
             directionHint = Vector3.zero;
 
@@ -24,12 +24,14 @@ namespace MagicaClothColliderBuilder
         {
             if (boneTransform == null) return false;
 
-            if (TryGetHumanoidLimbChildDirectionHint(animator, boneTransform, out _)) return true;
+            if (TryHumanoidHint(animator, boneTransform, out _))
+            {
+                return true;
+            }
 
             string boneName = boneTransform.name.ToLowerInvariant();
 
-            bool isLegOrArm =
-                boneName.Contains("upperleg") ||
+            if (boneName.Contains("upperleg") ||
                 boneName.Contains("lowerleg") ||
                 boneName.Contains("thigh") ||
                 boneName.Contains("calf") ||
@@ -39,29 +41,33 @@ namespace MagicaClothColliderBuilder
                 boneName.Contains("lowerarm") ||
                 boneName.Contains("forearm") ||
                 boneName.Contains("elbow") ||
-                boneName.Contains("arm");
-
-            if (!isLegOrArm) return false;
-
-            bool excluded =
-                boneName.Contains("shoulder") ||
-                boneName.Contains("hand") ||
-                boneName.Contains("finger") ||
-                boneName.Contains("thumb") ||
-                boneName.Contains("index") ||
-                boneName.Contains("middle") ||
-                boneName.Contains("ring") ||
-                boneName.Contains("little") ||
-                boneName.Contains("toe") ||
-                boneName.Contains("foot") ||
-                boneName.Contains("hips") ||
-                boneName.Contains("pelvis") ||
-                boneName.Contains("spine") ||
-                boneName.Contains("chest") ||
-                boneName.Contains("neck") ||
-                boneName.Contains("head");
-
-            return !excluded;
+                boneName.Contains("arm"))
+            {
+                if (boneName.Contains("shoulder") ||
+                    boneName.Contains("hand") ||
+                    boneName.Contains("finger") ||
+                    boneName.Contains("thumb") ||
+                    boneName.Contains("index") ||
+                    boneName.Contains("middle") ||
+                    boneName.Contains("ring") ||
+                    boneName.Contains("little") ||
+                    boneName.Contains("toe") ||
+                    boneName.Contains("foot") ||
+                    boneName.Contains("hips") ||
+                    boneName.Contains("pelvis") ||
+                    boneName.Contains("spine") ||
+                    boneName.Contains("chest") ||
+                    boneName.Contains("neck") ||
+                    boneName.Contains("head"))
+                {
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
+            }
+            else return false;
         }
 
         private static bool IsBodyRole(BoneFitRole role)
@@ -73,7 +79,7 @@ namespace MagicaClothColliderBuilder
                 role == BoneFitRole.UpperChest;
         }
 
-        private static bool TryGetChildDirectionHint(Animator animator, Transform boneTransform, out Vector3 directionHint)
+        private static bool TryChildHint(Animator animator, Transform boneTransform, out Vector3 directionHint)
         {
             directionHint = Vector3.zero;
 
@@ -82,7 +88,7 @@ namespace MagicaClothColliderBuilder
                 return false;
             }
 
-            if (TryGetHumanoidLimbChildDirectionHint(animator, boneTransform, out directionHint))
+            if (TryHumanoidHint(animator, boneTransform, out directionHint))
             {
                 return true;
             }
@@ -129,7 +135,7 @@ namespace MagicaClothColliderBuilder
                 float alignment = hasParentDirection ? Vector3.Dot(childLocal.normalized, parentDirection) : 0.0f;
                 float score = (length * 0.75f) + (alignment * 0.25f);
 
-                score += GetLimbChildPreferenceScore(boneTransform.name, child.name);
+                score += ChildPrefScore(boneTransform.name, child.name);
 
                 if (!hasValid || score > bestScore)
                 {
@@ -142,7 +148,7 @@ namespace MagicaClothColliderBuilder
             return hasValid;
         }
 
-        private static bool TryGetHumanoidLimbChildDirectionHint(Animator animator, Transform boneTransform, out Vector3 directionHint)
+        private static bool TryHumanoidHint(Animator animator, Transform boneTransform, out Vector3 directionHint)
         {
             directionHint = Vector3.zero;
 
@@ -188,14 +194,17 @@ namespace MagicaClothColliderBuilder
 
             var childBone = animator.GetBoneTransform(nextBone);
 
-            if (childBone == null) return false;
+            if (childBone == null)
+            {
+                return false;
+            }
 
             directionHint = boneTransform.InverseTransformPoint(childBone.position);
 
             return directionHint.sqrMagnitude > 1.0e-8f;
         }
 
-        private static float GetLimbChildPreferenceScore(string parentBoneName, string childBoneName)
+        private static float ChildPrefScore(string parentBoneName, string childBoneName)
         {
             if (string.IsNullOrEmpty(parentBoneName) || string.IsNullOrEmpty(childBoneName))
             {

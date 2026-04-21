@@ -5,13 +5,13 @@ namespace MagicaClothColliderBuilder
 {
     public static partial class ColliderCapsuleFitter
     {
-        private static List<Vector3> BuildLimbAxisCandidates(Vector3[] vertices, Vector3 childHint, bool hasParentHint, Vector3 parentHint)
+        private static List<Vector3> BuildLimbAxes(Vector3[] vertices, Vector3 childHint, bool hasParentHint, Vector3 parentHint)
         {
             var candidates = new List<Vector3>();
 
             if (childHint.sqrMagnitude <= 1.0e-8f)
             {
-                return BuildAxisCandidates(vertices, false, Vector3.zero, hasParentHint, parentHint);
+                return BuildAxes(vertices, false, Vector3.zero, hasParentHint, parentHint);
             }
 
             var primary = childHint.normalized;
@@ -67,10 +67,10 @@ namespace MagicaClothColliderBuilder
                 candidates.Add((q2 * primary).normalized);
             }
 
-            return DeduplicateAxes(candidates, 0.9985f);
+            return UniqueAxes(candidates, 0.9985f);
         }
 
-        private static List<Vector3> BuildAxisCandidates(Vector3[] vertices, bool hasChildHint, Vector3 childHint, bool hasParentHint, Vector3 parentHint)
+        private static List<Vector3> BuildAxes(Vector3[] vertices, bool hasChildHint, Vector3 childHint, bool hasParentHint, Vector3 parentHint)
         {
             var candidates = new List<Vector3>();
 
@@ -92,10 +92,10 @@ namespace MagicaClothColliderBuilder
             candidates.Add(-Vector3.up);
             candidates.Add(-Vector3.forward);
 
-            return DeduplicateAxes(candidates, 0.995f);
+            return UniqueAxes(candidates, 0.995f);
         }
 
-        private static List<Vector3> DeduplicateAxes(List<Vector3> candidates, float dotThreshold)
+        private static List<Vector3> UniqueAxes(List<Vector3> candidates, float dotThreshold)
         {
             var unique = new List<Vector3>();
 

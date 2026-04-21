@@ -17,7 +17,7 @@ namespace MagicaClothColliderBuilder
             public float Target;
         }
 
-        private static bool TryGetAreaWeightedAxisPercentile(Vector3[] vertices, int[] triangles, int axis, float percentile, out float result)
+        private static bool TryAxisWeighted(Vector3[] vertices, int[] triangles, int axis, float percentile, out float result)
         {
             result = 0.0f;
 
@@ -46,7 +46,10 @@ namespace MagicaClothColliderBuilder
 
                 float area = Vector3.Cross(v1 - v0, v2 - v0).magnitude * 0.5f;
 
-                if (area <= 1.0e-12f) continue;
+                if (area <= 1.0e-12f)
+                {
+                    continue;
+                }
 
                 values.Add(v0[axis]);
                 weights.Add(area);
@@ -61,7 +64,7 @@ namespace MagicaClothColliderBuilder
                 return false;
             }
 
-            result = WeightedPercentile(values, weights, percentile);
+            result = WeightPercentile(values, weights, percentile);
 
             return true;
         }
@@ -83,7 +86,7 @@ namespace MagicaClothColliderBuilder
             return values;
         }
 
-        private static bool TryGetAreaWeightedDistancePercentiles(Vector3[] vertices, int[] triangles, Vector3 center, float[] percentiles, float[] weightedRadii)
+        private static bool TryDistanceWeighted(Vector3[] vertices, int[] triangles, Vector3 center, float[] percentiles, float[] weightedRadii)
         {
             if (vertices == null || triangles == null || percentiles == null || weightedRadii == null)
             {
@@ -115,7 +118,10 @@ namespace MagicaClothColliderBuilder
 
                 var area = Vector3.Cross(v1 - v0, v2 - v0).magnitude * 0.5f;
 
-                if (area <= 1.0e-12f) continue;
+                if (area <= 1.0e-12f)
+                {
+                    continue;
+                }
 
                 values.Add((v0 - center).magnitude);
                 weights.Add(area);
@@ -139,7 +145,10 @@ namespace MagicaClothColliderBuilder
             {
                 float weight = weights[i];
 
-                if (weight <= 0.0f) continue;
+                if (weight <= 0.0f)
+                {
+                    continue;
+                }
 
                 samples.Add(new WeightedSample
                 {
@@ -195,7 +204,7 @@ namespace MagicaClothColliderBuilder
             return true;
         }
 
-        private static bool TryGetAreaWeightedRadialPercentile(Vector3[] rotatedVertices, int[] triangles, float percentile, out float weightedRadius)
+        private static bool TryRadialWeighted(Vector3[] rotatedVertices, int[] triangles, float percentile, out float weightedRadius)
         {
             weightedRadius = 0.0f;
 
@@ -224,7 +233,10 @@ namespace MagicaClothColliderBuilder
 
                 float area = Vector3.Cross(v1 - v0, v2 - v0).magnitude * 0.5f;
 
-                if (area <= 1.0e-12f) continue;
+                if (area <= 1.0e-12f)
+                {
+                    continue;
+                }
 
                 values.Add(Mathf.Sqrt((v0.x * v0.x) + (v0.z * v0.z)));
                 weights.Add(area);
@@ -239,12 +251,12 @@ namespace MagicaClothColliderBuilder
                 return false;
             }
 
-            weightedRadius = WeightedPercentile(values, weights, percentile);
+            weightedRadius = WeightPercentile(values, weights, percentile);
 
             return true;
         }
 
-        private static float WeightedPercentile(List<float> values, List<float> weights, float percentile)
+        private static float WeightPercentile(List<float> values, List<float> weights, float percentile)
         {
             if (values == null || weights == null || values.Count == 0 || weights.Count == 0)
             {
@@ -265,7 +277,10 @@ namespace MagicaClothColliderBuilder
             {
                 float weight = weights[i];
 
-                if (weight <= 0.0f) continue;
+                if (weight <= 0.0f)
+                {
+                    continue;
+                }
 
                 samples.Add(new WeightedSample
                 {
@@ -355,16 +370,22 @@ namespace MagicaClothColliderBuilder
 
         private static float Percentile(List<float> values, float percentile)
         {
-            if (values == null || values.Count == 0) return 0f;
+            if (values == null || values.Count == 0)
+            {
+                return 0f;
+            }
 
             values.Sort();
 
-            return PercentileFromSorted(values, percentile);
+            return SortedPercentile(values, percentile);
         }
 
-        private static float PercentileFromSorted(List<float> sortedValues, float percentile)
+        private static float SortedPercentile(List<float> sortedValues, float percentile)
         {
-            if (sortedValues == null || sortedValues.Count == 0) return 0f;
+            if (sortedValues == null || sortedValues.Count == 0)
+            {
+                return 0f;
+            }
 
             if (sortedValues.Count == 1)
             {

@@ -22,9 +22,9 @@ namespace MagicaClothColliderBuilder
 
             if (vertices == null || vertices.Length < 4) return false;
 
-            bool hasChildHint = TryGetChildDirectionHint(job.Animator, job.TargetBone.transform, out Vector3 childHint);
-            bool hasParentHint = TryGetParentDirectionHint(job.TargetBone.transform, out Vector3 parentHint);
-            bool hasHumanoidLimbHint = TryGetHumanoidLimbChildDirectionHint(job.Animator, job.TargetBone.transform, out Vector3 humanoidLimbHint);
+            bool hasChildHint = TryChildHint(job.Animator, job.TargetBone.transform, out Vector3 childHint);
+            bool hasParentHint = TryParentHint(job.TargetBone.transform, out Vector3 parentHint);
+            bool hasHumanoidLimbHint = TryHumanoidHint(job.Animator, job.TargetBone.transform, out Vector3 humanoidLimbHint);
 
             var boneRole = DetectBoneFitRole(job.TargetBone.transform);
 
@@ -48,7 +48,7 @@ namespace MagicaClothColliderBuilder
                 return true;
             }
 
-            return TryFitBest(job, vertices, boneRole, hasChildHint, childHint, hasParentHint, parentHint, out fitResult);
+            return TryFitAuto(job, vertices, boneRole, hasChildHint, childHint, hasParentHint, parentHint, out fitResult);
         }
 
         public static BoneFitRole DetectBoneFitRole(Transform boneTransform)

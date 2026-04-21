@@ -38,17 +38,17 @@ namespace MagicaClothColliderBuilder
                 Percentile(zValues, 50.0f));
 
 
-            if (!TryGetAreaWeightedAxisPercentile(vertices, job.Triangles, 0, 50.0f, out float weightedCenterX))
+            if (!TryAxisWeighted(vertices, job.Triangles, 0, 50.0f, out float weightedCenterX))
             {
                 weightedCenterX = center.x;
             }
 
-            if (!TryGetAreaWeightedAxisPercentile(vertices, job.Triangles, 1, 50.0f, out float weightedCenterY))
+            if (!TryAxisWeighted(vertices, job.Triangles, 1, 50.0f, out float weightedCenterY))
             {
                 weightedCenterY = center.y;
             }
 
-            if (!TryGetAreaWeightedAxisPercentile(vertices, job.Triangles, 2, 50.0f, out float weightedCenterZ))
+            if (!TryAxisWeighted(vertices, job.Triangles, 2, 50.0f, out float weightedCenterZ))
             {
                 weightedCenterZ = center.z;
             }
@@ -80,16 +80,19 @@ namespace MagicaClothColliderBuilder
                 offsetCenter += (faceDir * settings.ForwardOffset) + (localUp * settings.UpOffset);
             }
 
-            return TryOptimizeHead(job, settings, center, offsetCenter, out fitResult);
+            return TryFitHeadBest(job, settings, center, offsetCenter, out fitResult);
         }
 
-        internal static bool TryOptimizeHead(ColliderGenerationJob job, HeadFitProperty settings, Vector3 center, Vector3 offsetCenter, out CapsuleFitResult fitResult)
+        internal static bool TryFitHeadBest(ColliderGenerationJob job, HeadFitProperty settings, Vector3 center, Vector3 offsetCenter, out CapsuleFitResult fitResult)
         {
             fitResult = default;
 
             var vertices = job.Vertices;
 
-            if (vertices == null || vertices.Length < 4) return false;
+            if (vertices == null || vertices.Length < 4)
+            {
+                return false;
+            }
 
             var lowerPercentiles = new float[] { 1.0f, 3.0f, 5.0f, 8.0f, 10.0f };
             var upperPercentiles = new float[] { 99.0f, 97.0f, 95.0f, 92.0f, 90.0f };
@@ -123,14 +126,14 @@ namespace MagicaClothColliderBuilder
             for (int p = 0; p < lowerPercentiles.Length; ++p)
             {
 
-                if (!TryGetAreaWeightedAxisPercentile(vertices, job.Triangles, 1, lowerPercentiles[p], out float minY))
+                if (!TryAxisWeighted(vertices, job.Triangles, 1, lowerPercentiles[p], out float minY))
                 {
-                    minY = PercentileFromSorted(sortedYValues, lowerPercentiles[p]);
+                    minY = SortedPercentile(sortedYValues, lowerPercentiles[p]);
                 }
 
-                if (!TryGetAreaWeightedAxisPercentile(vertices, job.Triangles, 1, upperPercentiles[p], out float maxY))
+                if (!TryAxisWeighted(vertices, job.Triangles, 1, upperPercentiles[p], out float maxY))
                 {
-                    maxY = PercentileFromSorted(sortedYValues, upperPercentiles[p]);
+                    maxY = SortedPercentile(sortedYValues, upperPercentiles[p]);
                 }
 
                 minYCandidates[p] = minY;
@@ -158,7 +161,7 @@ namespace MagicaClothColliderBuilder
                         float centerY = Mathf.Lerp(minY, maxY, centerYRatios[cy]);
                         Vector3 candidateCenter = new Vector3(centerSeed.x, centerY, centerSeed.z);
                         var baseRadii = new float[radiusPercentiles.Length];
-                        bool hasWeightedRadii = TryGetAreaWeightedDistancePercentiles(vertices, job.Triangles, candidateCenter, radiusPercentiles, baseRadii);
+                        bool hasWeightedRadii = TryDistanceWeighted(vertices, job.Triangles, candidateCenter, radiusPercentiles, baseRadii);
                         List<float> sortedDistanceValues = null;
 
                         if (!hasWeightedRadii)
@@ -177,7 +180,7 @@ namespace MagicaClothColliderBuilder
                         {
                             float baseRadius = hasWeightedRadii
                                 ? baseRadii[rp]
-                                : PercentileFromSorted(sortedDistanceValues, radiusPercentiles[rp]);
+                                : SortedPercentile(sortedDistanceValues, radiusPercentiles[rp]);
 
                             float radius = Mathf.Clamp(baseRadius * settings.RadiusScale, settings.MinRadius, settings.MaxRadius);
 
@@ -186,7 +189,7 @@ namespace MagicaClothColliderBuilder
                                 float totalLength = Mathf.Max(radius * 2.0f, span * lengthScales[ls]);
                                 totalLength = Mathf.Max(totalLength, 0.005f);
 
-                                float score = CalculateUniformCapsuleScore(vertices, candidateCenter, totalLength, radius);
+                                float score = ScoreUniform(vertices, candidateCenter, totalLength, radius);
 
                                 if (!hasCandidate || score < bestScore)
                                 {
@@ -207,7 +210,7 @@ namespace MagicaClothColliderBuilder
                                 if (settings.AnchorOuterStartToHeadTransform)
                                 {
                                     Vector3 anchoredCenter = new Vector3(0.0f, (totalLength * 0.5f) + radius, 0.0f);
-                                    float anchoredScore = CalculateUniformCapsuleScore(vertices, anchoredCenter, totalLength, radius);
+                                    float anchoredScore = ScoreUniform(vertices, anchoredCenter, totalLength, radius);
 
                                     if (!hasCandidate || anchoredScore < bestScore)
                                     {
