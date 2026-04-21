@@ -4,13 +4,15 @@ MagicaCloth2用のコライダーを自動生成するツールです。
 
 ## Requirements
 
-- Unity 6
+- Unity 2022.3以降
 - Magica Cloth 2
+
+Unity 6.0で動作確認しています。
 
 ## Installation
 
-1. [リリース](https://github.com/NullClone/MagicaClothColliderBuilder/releases)からUnityパッケージをダウンロードし、Unityにインポート
-2. `Tools > Magica Cloth2 > Collider Builder` を開く
+1. [Releases](https://github.com/NullClone/MagicaClothColliderBuilder/releases)からUnityパッケージをダウンロードして、Unityプロジェクトへインポートします。
+2. `Tools > Magica Cloth2 > Collider Builder` を開きます。
 
 ## Usage
 
@@ -22,14 +24,15 @@ Cleanup Existing Collidersを押すことでコライダーを削除できます
 
 ## Notes
 
-- Unity 6.0での動作を確認済みです。
-- 検証には標準的なアバターのみを使用しています。
-- MagicaCloth2でのみで機能します。
-- 必ずしも正しい生成結果になるとは限りません。
-- こちらのツールはSAColliderBuilderを参考にしています。
+- このツールはMagica Cloth 2向けです。
+- 対象アバターのルートには、有効なHumanoid Avatarを持つAnimatorが必要です。
+- コライダーの生成結果はモデル、ウェイト、ボーン構造によって変わります。生成後は必ずSceneビューで位置とサイズを確認してください。
+- 頭、胴体、四肢、指、つま先はそれぞれ異なるフィット設定を持ちます。必要に応じてFit ModeやAdvanced設定を調整してください。
+- Custom Sourceを使う場合は、対象アバターに対応したSkinnedMeshRendererを指定してください。
+- このツールはSAColliderBuilderを参考にしています。
 
 ## License
 
-MITを採用しています。
+MIT Licenseです。
 
 詳細は [LICENSE.md](LICENSE.md) を参照してください。
