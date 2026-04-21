@@ -25,19 +25,6 @@ namespace MagicaClothColliderBuilder
     }
 
     [Serializable]
-    public class ReducerProperty
-    {
-        public Vector3 Scale = Vector3.one;
-        public Vector3 MinThickness = new Vector3(0.01f, 0.01f, 0.01f);
-
-        [HideInInspector] public ElementType ScaleElementType = ElementType.X;
-        [HideInInspector] public ElementType MinThicknessElementType = ElementType.X;
-        [HideInInspector] public Vector3 Offset = Vector3.zero;
-        [HideInInspector] public Vector3 ThicknessA = Vector3.zero;
-        [HideInInspector] public Vector3 ThicknessB = Vector3.zero;
-    }
-
-    [Serializable]
     public class LimbFitProperty
     {
         public bool ForceFixedAxisByHumanoid = true;
@@ -174,7 +161,6 @@ namespace MagicaClothColliderBuilder
     {
         public GenerationProperty GenerationProperty = new();
         public SplitProperty SplitProperty = new();
-        public ReducerProperty ReducerProperty = new();
         public LimbFitProperty LimbFitProperty = new();
         public BodyFitProperty BodyFitProperty = new();
         public HeadFitProperty HeadFitProperty = new();

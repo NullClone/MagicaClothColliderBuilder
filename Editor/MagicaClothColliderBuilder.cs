@@ -15,7 +15,6 @@ namespace MagicaClothColliderBuilder
             Limbs,
             Body,
             Generic,
-            Reducer,
         }
 
 
@@ -45,7 +44,7 @@ namespace MagicaClothColliderBuilder
         {
             EditorGUILayout.Space();
 
-            m_SelectedTab = (SettingsTab)GUILayout.Toolbar((int)m_SelectedTab, new[] { "Overview", "Split", "Limbs", "Body", "Generic", "Reducer" }, GUILayout.Height(28f));
+            m_SelectedTab = (SettingsTab)GUILayout.Toolbar((int)m_SelectedTab, new[] { "Overview", "Split", "Limbs", "Body", "Generic" }, GUILayout.Height(28f));
 
             EditorGUILayout.Space();
 
@@ -67,9 +66,6 @@ namespace MagicaClothColliderBuilder
                     break;
                 case SettingsTab.Generic:
                     DrawGenericTab();
-                    break;
-                case SettingsTab.Reducer:
-                    DrawReducerTab();
                     break;
             }
 
@@ -289,27 +285,6 @@ namespace MagicaClothColliderBuilder
                 generic.HipsMaxLengthByBoneRatio = EditorGUILayout.Slider("Hips Max Length / Bone", generic.HipsMaxLengthByBoneRatio, 0.1f, 3f);
                 generic.MaxRadiusByBoneRatio = EditorGUILayout.Slider("Max Radius / Bone", generic.MaxRadiusByBoneRatio, 0.1f, 1.5f);
                 generic.MaxRadiusByLengthRatio = EditorGUILayout.Slider("Max Radius / Length", generic.MaxRadiusByLengthRatio, 0.1f, 1.5f);
-            });
-        }
-
-        private void DrawReducerTab()
-        {
-            DrawCard("Reducer", () =>
-            {
-                ReducerProperty reducer = m_Settings.ReducerProperty;
-                reducer.Scale = EditorGUILayout.Vector3Field("Scale", reducer.Scale);
-                reducer.MinThickness = EditorGUILayout.Vector3Field("Min Thickness", reducer.MinThickness);
-                reducer.MinThickness.x = Mathf.Max(0.0f, reducer.MinThickness.x);
-                reducer.MinThickness.y = Mathf.Max(0.0f, reducer.MinThickness.y);
-                reducer.MinThickness.z = Mathf.Max(0.0f, reducer.MinThickness.z);
-            });
-
-            DrawCard("Reducer Offsets", () =>
-            {
-                ReducerProperty reducer = m_Settings.ReducerProperty;
-                reducer.Offset = EditorGUILayout.Vector3Field("Offset", reducer.Offset);
-                reducer.ThicknessA = EditorGUILayout.Vector3Field("Thickness A", reducer.ThicknessA);
-                reducer.ThicknessB = EditorGUILayout.Vector3Field("Thickness B", reducer.ThicknessB);
             });
         }
 
