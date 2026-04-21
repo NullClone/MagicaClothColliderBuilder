@@ -1,4 +1,3 @@
-using System.Threading;
 using UnityEngine;
 
 namespace MagicaClothColliderBuilder
@@ -18,9 +17,6 @@ namespace MagicaClothColliderBuilder
         public Animator Animator { get; }
 
         private readonly BoneMeshCache m_BoneMeshCache;
-
-        internal CountdownEvent m_CountdownEvent;
-
 
         // Methods
 
@@ -42,11 +38,6 @@ namespace MagicaClothColliderBuilder
             Triangles = boneMeshCreator.BoneTriangles;
 
             return Vertices != null && Vertices.Length > 0;
-        }
-
-        public void Execute(object state)
-        {
-            m_CountdownEvent?.Signal();
         }
     }
 }

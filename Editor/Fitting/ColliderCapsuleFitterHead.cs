@@ -19,10 +19,11 @@ namespace MagicaClothColliderBuilder
 
             var settings = job.Property.HeadFitProperty;
             var headTransform = job.TargetBone.transform;
+            FitMode fitMode = ResolveFitMode(job, BoneFitRole.Head);
 
             if (settings.FitMethod == HeadFitMethod.FastBounds)
             {
-                return TryFitHeadFast(job, settings, headTransform, out fitResult);
+                return TryFitHeadFast(job, settings, headTransform, fitMode, out fitResult);
             }
 
             var xValues = new List<float>(vertices.Length);
@@ -88,7 +89,7 @@ namespace MagicaClothColliderBuilder
             return TryFitHeadBest(job, settings, center, offsetCenter, out fitResult);
         }
 
-        private static bool TryFitHeadFast(ColliderGenerationJob job, HeadFitProperty settings, Transform headTransform, out CapsuleFitResult fitResult)
+        private static bool TryFitHeadFast(ColliderGenerationJob job, HeadFitProperty settings, Transform headTransform, FitMode fitMode, out CapsuleFitResult fitResult)
         {
             fitResult = default;
 
@@ -105,10 +106,16 @@ namespace MagicaClothColliderBuilder
             float maxX = float.MinValue;
             float maxY = float.MinValue;
             float maxZ = float.MinValue;
+            var xValues = new List<float>(vertices.Length);
+            var yValues = new List<float>(vertices.Length);
+            var zValues = new List<float>(vertices.Length);
 
             for (int i = 0; i < vertices.Length; ++i)
             {
                 Vector3 v = vertices[i];
+                xValues.Add(v.x);
+                yValues.Add(v.y);
+                zValues.Add(v.z);
 
                 if (v.x < minX) minX = v.x;
                 if (v.y < minY) minY = v.y;
@@ -116,6 +123,18 @@ namespace MagicaClothColliderBuilder
                 if (v.x > maxX) maxX = v.x;
                 if (v.y > maxY) maxY = v.y;
                 if (v.z > maxZ) maxZ = v.z;
+            }
+
+            if (fitMode != FitMode.Outer)
+            {
+                float lower = fitMode == FitMode.Inner ? 8.0f : 3.0f;
+                float upper = fitMode == FitMode.Inner ? 92.0f : 97.0f;
+                minX = Percentile(xValues, lower);
+                maxX = Percentile(xValues, upper);
+                minY = Percentile(yValues, lower);
+                maxY = Percentile(yValues, upper);
+                minZ = Percentile(zValues, lower);
+                maxZ = Percentile(zValues, upper);
             }
 
             Vector3 center = new Vector3(
@@ -126,7 +145,13 @@ namespace MagicaClothColliderBuilder
             float halfWidthX = Mathf.Max(0.0f, (maxX - minX) * 0.5f);
             float halfWidthZ = Mathf.Max(0.0f, (maxZ - minZ) * 0.5f);
             float baseRadius = Mathf.Max(halfWidthX, halfWidthZ);
-            float radius = Mathf.Clamp(baseRadius * settings.RadiusScale, settings.MinRadius, settings.MaxRadius);
+            float modeScale = fitMode switch
+            {
+                FitMode.Inner => 0.88f,
+                FitMode.Outer => 1.0f,
+                _ => 0.95f,
+            };
+            float radius = Mathf.Clamp(baseRadius * settings.RadiusScale * modeScale, settings.MinRadius, settings.MaxRadius);
             float length = Mathf.Clamp(radius * settings.LengthRatio, 0.005f, radius * 0.6f);
 
             if (settings.AnchorOuterStartToHeadTransform)
@@ -173,6 +198,7 @@ namespace MagicaClothColliderBuilder
             fitResult = default;
 
             var vertices = job.Vertices;
+            FitMode fitMode = ResolveFitMode(job, BoneFitRole.Head);
 
             if (vertices == null || vertices.Length < 4)
             {
@@ -183,10 +209,10 @@ namespace MagicaClothColliderBuilder
             var upperPercentiles = new float[] { 99.0f, 97.0f, 95.0f, 92.0f, 90.0f };
             var radiusPercentiles = new float[]
             {
-                Mathf.Clamp(settings.RadiusPercentile - 6.0f, 45.0f, 98.0f),
-                Mathf.Clamp(settings.RadiusPercentile - 3.0f, 45.0f, 98.0f),
-                Mathf.Clamp(settings.RadiusPercentile, 45.0f, 98.0f),
-                Mathf.Clamp(settings.RadiusPercentile + 3.0f, 45.0f, 98.0f),
+                Mathf.Clamp(ResolveHeadRadiusPercentile(settings.RadiusPercentile, fitMode) - 6.0f, 35.0f, 98.0f),
+                Mathf.Clamp(ResolveHeadRadiusPercentile(settings.RadiusPercentile, fitMode) - 3.0f, 35.0f, 98.0f),
+                Mathf.Clamp(ResolveHeadRadiusPercentile(settings.RadiusPercentile, fitMode), 35.0f, 98.0f),
+                Mathf.Clamp(ResolveHeadRadiusPercentile(settings.RadiusPercentile, fitMode) + 3.0f, 35.0f, 98.0f),
             };
             var lengthScales = new float[] { 0.7f, 0.82f, 0.94f, 1.0f };
             var centerYRatios = new float[] { 0.45f, 0.5f, 0.55f };
@@ -320,6 +346,16 @@ namespace MagicaClothColliderBuilder
             }
 
             return hasCandidate;
+        }
+
+        private static float ResolveHeadRadiusPercentile(float basePercentile, FitMode fitMode)
+        {
+            return fitMode switch
+            {
+                FitMode.Inner => Mathf.Min(basePercentile, 55.0f),
+                FitMode.Outer => Mathf.Max(basePercentile, 78.0f),
+                _ => basePercentile,
+            };
         }
     }
 }

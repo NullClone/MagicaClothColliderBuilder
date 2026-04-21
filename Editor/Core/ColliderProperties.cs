@@ -17,6 +17,13 @@ namespace MagicaClothColliderBuilder
     [Serializable]
     public class GenerationProperty
     {
+        public FitMode DefaultFitMode = FitMode.Balanced;
+        public FitMode ArmFitMode = FitMode.Inner;
+        public FitMode LegFitMode = FitMode.Balanced;
+        public FitMode FingerFitMode = FitMode.Inner;
+        public FitMode ToeFitMode = FitMode.Balanced;
+        public FitMode BodyFitMode = FitMode.Balanced;
+        public FitMode HeadFitMode = FitMode.Balanced;
         public bool IncludeHips = false;
         public bool IncludeFingers = false;
         public bool IncludeShoulders = false;
@@ -29,12 +36,28 @@ namespace MagicaClothColliderBuilder
     {
         public bool ForceFixedAxisByHumanoid = true;
         public bool AnchorStartSphereCenterToBone = true;
-        public float RadiusPercentile = 70.0f;
+        public float InnerRadiusPercentile = 44.0f;
+        public float BalancedRadiusPercentile = 62.0f;
+        public float OuterRadiusPercentile = 78.0f;
         public float RadiusScale = 1.0f;
         public float MinJointDistance = 0.02f;
         public float LeakMarginScale = 0.08f;
         public float LeakMarginMin = 0.004f;
         public float LeakMarginMax = 0.012f;
+
+        public float GetRadiusPercentile(FitMode fitMode) => fitMode switch
+        {
+            FitMode.Inner => InnerRadiusPercentile,
+            FitMode.Outer => OuterRadiusPercentile,
+            _ => BalancedRadiusPercentile,
+        };
+
+        public float GetRadiusCapScale(FitMode fitMode) => fitMode switch
+        {
+            FitMode.Inner => 0.72f,
+            FitMode.Outer => 1.15f,
+            _ => 1.0f,
+        };
     }
 
     [Serializable]
@@ -74,6 +97,20 @@ namespace MagicaClothColliderBuilder
             BoneFitRole.Chest => ChestRadiusScale,
             BoneFitRole.UpperChest => UpperChestRadiusScale,
             _ => ChestRadiusScale,
+        };
+
+        public float GetRadiusPercentile(FitMode fitMode) => fitMode switch
+        {
+            FitMode.Inner => Mathf.Min(RadiusPercentile, 52.0f),
+            FitMode.Outer => Mathf.Max(RadiusPercentile, 78.0f),
+            _ => RadiusPercentile,
+        };
+
+        public float GetRadiusCapScale(FitMode fitMode) => fitMode switch
+        {
+            FitMode.Inner => 0.82f,
+            FitMode.Outer => 1.10f,
+            _ => 1.0f,
         };
     }
 
@@ -132,6 +169,25 @@ namespace MagicaClothColliderBuilder
             _ => DefaultFitPercentile,
         };
 
+        public float GetFitPercentile(BoneFitRole role, FitMode fitMode)
+        {
+            float basePercentile = GetFitPercentile(role);
+
+            return fitMode switch
+            {
+                FitMode.Inner => Mathf.Min(basePercentile, IsCoreRole(role) ? 52.0f : 46.0f),
+                FitMode.Outer => Mathf.Max(basePercentile, 78.0f),
+                _ => basePercentile,
+            };
+        }
+
+        public float GetRadiusCapScale(FitMode fitMode) => fitMode switch
+        {
+            FitMode.Inner => 0.78f,
+            FitMode.Outer => 1.12f,
+            _ => 1.0f,
+        };
+
         public float GetCenterYRatio(BoneFitRole role) => role switch
         {
             BoneFitRole.Hips => HipsCenterYRatio,
@@ -155,6 +211,15 @@ namespace MagicaClothColliderBuilder
             BoneFitRole.UpperChest => (UpperChestLowerPercentile, UpperChestUpperPercentile),
             _ => (DefaultLowerPercentile, DefaultUpperPercentile),
         };
+
+        private static bool IsCoreRole(BoneFitRole role)
+        {
+            return role == BoneFitRole.Hips ||
+                   role == BoneFitRole.Spine ||
+                   role == BoneFitRole.Chest ||
+                   role == BoneFitRole.UpperChest ||
+                   role == BoneFitRole.Neck;
+        }
     }
 
     public class SABoneColliderProperty
@@ -196,5 +261,12 @@ namespace MagicaClothColliderBuilder
     {
         FastBounds,
         AccuratePercentile,
+    }
+
+    public enum FitMode
+    {
+        Inner,
+        Balanced,
+        Outer,
     }
 }

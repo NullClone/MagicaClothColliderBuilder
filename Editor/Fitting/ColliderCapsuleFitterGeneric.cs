@@ -11,18 +11,23 @@ namespace MagicaClothColliderBuilder
             var limbSettings = job.Property.LimbFitProperty;
             var limbAxis = childHint.normalized;
             var jointDistance = Mathf.Max(childHint.magnitude, limbSettings.MinJointDistance);
+            bool centerToMeshCrossSection = IsHumanoidFingerBone(job.Animator, job.TargetBone.transform);
+            FitMode fitMode = ResolveFitMode(job, boneRole);
+            float radiusPercentile = limbSettings.GetRadiusPercentile(fitMode);
 
             var limbRotation = Quaternion.FromToRotation(Vector3.up, limbAxis);
 
             if (!TryFitOnY(
                 job.Vertices,
                 Quaternion.Inverse(limbRotation),
-                limbSettings.RadiusPercentile,
+                radiusPercentile,
                 jointDistance,
                 boneRole,
                 true,
+                centerToMeshCrossSection,
+                fitMode,
                 job.Property,
-                out Vector3 _,
+                out Vector3 limbCenter,
                 out float _,
                 out float limbStartRadius,
                 out float limbEndRadius,
@@ -44,7 +49,7 @@ namespace MagicaClothColliderBuilder
 
             fitResult.LocalRotation = limbRotation;
             fitResult.Direction = MagicaCapsuleCollider.Direction.Y;
-            fitResult.Center = new Vector3(0.0f, centerY, 0.0f);
+            fitResult.Center = new Vector3(limbCenter.x, centerY, limbCenter.z);
             fitResult.Length = totalLength;
             fitResult.RadiusAtMin = limbStartRadius;
             fitResult.RadiusAtMax = limbEndRadius;
@@ -57,7 +62,8 @@ namespace MagicaClothColliderBuilder
         {
             fitResult = default;
 
-            float fitPercentile = job.Property.GenericFitProperty.GetFitPercentile(boneRole);
+            FitMode fitMode = ResolveFitMode(job, boneRole);
+            float fitPercentile = job.Property.GenericFitProperty.GetFitPercentile(boneRole, fitMode);
             var axisCandidates = hasChildHint && childHint.sqrMagnitude > 1.0e-8f && !IsBodyRole(boneRole)
             ? BuildLimbAxes(vertices, childHint, hasParentHint, parentHint)
             : BuildAxes(vertices, hasChildHint, childHint, hasParentHint, parentHint);
@@ -104,6 +110,8 @@ namespace MagicaClothColliderBuilder
                     boneLengthHint,
                     boneRole,
                     boneRole == BoneFitRole.Neck,
+                    false,
+                    fitMode,
                     job.Property,
                     out Vector3 candidateCenter,
                     out float candidateLength,
@@ -151,7 +159,7 @@ namespace MagicaClothColliderBuilder
         }
 
 
-        private static bool TryFitOnY(Vector3[] vertices, Quaternion inverseRotation, float fitPercentile, float boneLengthHint, BoneFitRole boneRole, bool useBoneAxisCenter, SABoneColliderProperty property, out Vector3 center, out float length, out float startRadius, out float endRadius, out float score)
+        private static bool TryFitOnY(Vector3[] vertices, Quaternion inverseRotation, float fitPercentile, float boneLengthHint, BoneFitRole boneRole, bool useBoneAxisCenter, bool centerToMeshCrossSection, FitMode fitMode, SABoneColliderProperty property, out Vector3 center, out float length, out float startRadius, out float endRadius, out float score)
         {
             center = Vector3.zero;
             length = property.GenericFitProperty.MinLength;
@@ -189,8 +197,15 @@ namespace MagicaClothColliderBuilder
                 minY = 0.0f;
                 maxY = Mathf.Max(boneLengthHint, property.LimbFitProperty.MinJointDistance);
                 length = maxY;
-                centerX = 0.0f;
-                centerZ = 0.0f;
+                if (centerToMeshCrossSection)
+                {
+                    ResolveCrossSectionCenter(rotated, minY, maxY, out centerX, out centerZ);
+                }
+                else
+                {
+                    centerX = 0.0f;
+                    centerZ = 0.0f;
+                }
                 centerY = length * 0.5f;
             }
             else
@@ -252,6 +267,13 @@ namespace MagicaClothColliderBuilder
             startRadius = Percentile(radiiNearPos, fitPercentile);
             endRadius = Percentile(radiiNearNeg, fitPercentile);
 
+            if (fitMode == FitMode.Inner && allRadii.Count > 0)
+            {
+                float innerGlobalRadius = Percentile(allRadii, Mathf.Min(fitPercentile + 8.0f, 58.0f));
+                startRadius = Mathf.Min(startRadius, innerGlobalRadius);
+                endRadius = Mathf.Min(endRadius, innerGlobalRadius);
+            }
+
             float roleRadiusScale = property.GenericFitProperty.GetRadiusScale(boneRole);
             startRadius *= roleRadiusScale;
             endRadius *= roleRadiusScale;
@@ -259,6 +281,10 @@ namespace MagicaClothColliderBuilder
             float maxAllowedRadius = Mathf.Min(
                 Mathf.Max(0.02f, boneLengthHint * property.GenericFitProperty.MaxRadiusByBoneRatio),
                 Mathf.Max(0.01f, length * property.GenericFitProperty.MaxRadiusByLengthRatio));
+            float radiusCapScale = useBoneAxisCenter
+                ? property.LimbFitProperty.GetRadiusCapScale(fitMode)
+                : property.GenericFitProperty.GetRadiusCapScale(fitMode);
+            maxAllowedRadius *= radiusCapScale;
             startRadius = Mathf.Clamp(startRadius, property.GenericFitProperty.MinRadius, maxAllowedRadius);
             endRadius = Mathf.Clamp(endRadius, property.GenericFitProperty.MinRadius, maxAllowedRadius);
 
@@ -271,6 +297,38 @@ namespace MagicaClothColliderBuilder
 
             score = ScoreCapsule(rotated, minY, maxY, centerX, centerZ, length, startRadius, endRadius);
             return true;
+        }
+
+        private static void ResolveCrossSectionCenter(Vector3[] rotated, float minY, float maxY, out float centerX, out float centerZ)
+        {
+            var xValues = new List<float>();
+            var zValues = new List<float>();
+            float margin = Mathf.Max((maxY - minY) * 0.15f, 0.002f);
+            float allowedMinY = minY - margin;
+            float allowedMaxY = maxY + margin;
+
+            for (int i = 0; i < rotated.Length; ++i)
+            {
+                Vector3 v = rotated[i];
+
+                if (v.y < allowedMinY || v.y > allowedMaxY)
+                {
+                    continue;
+                }
+
+                xValues.Add(v.x);
+                zValues.Add(v.z);
+            }
+
+            if (xValues.Count == 0)
+            {
+                centerX = 0.0f;
+                centerZ = 0.0f;
+                return;
+            }
+
+            centerX = Percentile(xValues, 50.0f);
+            centerZ = Percentile(zValues, 50.0f);
         }
 
         private static void GetBounds(List<float> sortedYValues, float boneLengthHint, BoneFitRole boneRole, GenericFitProperty settings, out float minY, out float maxY, out float length)

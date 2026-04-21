@@ -81,6 +81,7 @@ namespace MagicaClothColliderBuilder
             var processedVertices = m_BoneMeshCache.ProcessedVertices;
             var boneWeightArray = new float[4];
             var boneIndexArray = new int[4];
+            int influenceLimit = m_SplitProperty.BoneWeightType == BoneWeightType.Bone2 ? 2 : 4;
             var weightThresholds = new float[5]
             {
                 0f,
@@ -103,7 +104,7 @@ namespace MagicaClothColliderBuilder
                 boneIndexArray[2] = boneWeights[i].boneIndex2;
                 boneIndexArray[3] = boneWeights[i].boneIndex3;
 
-                int targetBoneIndex = ResolveTargetBoneIndex(boneWeightArray, boneIndexArray, weightThresholds);
+                int targetBoneIndex = ResolveTargetBoneIndex(boneWeightArray, boneIndexArray, influenceLimit, weightThresholds);
 
                 if (targetBoneIndex == -1) continue;
 
@@ -117,12 +118,12 @@ namespace MagicaClothColliderBuilder
             return passedVertexCount > 0;
         }
 
-        private int ResolveTargetBoneIndex(float[] boneWeightArray, int[] boneIndexArray, float[] weightThresholds)
+        private int ResolveTargetBoneIndex(float[] boneWeightArray, int[] boneIndexArray, int influenceLimit, float[] weightThresholds)
         {
             var targetBones = m_BoneMeshCache.TargetBones;
             int boneCount = 0;
 
-            for (int n = 0; n < 4; ++n)
+            for (int n = 0; n < influenceLimit; ++n)
             {
                 if (boneIndexArray[n] >= 0 && boneWeightArray[n] > 0.0f)
                 {
@@ -130,7 +131,7 @@ namespace MagicaClothColliderBuilder
                 }
             }
 
-            for (int n = 0; n < 4; ++n)
+            for (int n = 0; n < influenceLimit; ++n)
             {
                 int boneIndex = boneIndexArray[n];
 
@@ -142,16 +143,16 @@ namespace MagicaClothColliderBuilder
 
             if (!m_SplitProperty.GreaterBoneWeight) return -1;
 
-            return ResolveDominantTargetBoneIndex(boneWeightArray, boneIndexArray, targetBones);
+            return ResolveDominantTargetBoneIndex(boneWeightArray, boneIndexArray, influenceLimit, targetBones);
         }
 
-        private static int ResolveDominantTargetBoneIndex(float[] boneWeightArray, int[] boneIndexArray, bool[] targetBones)
+        private static int ResolveDominantTargetBoneIndex(float[] boneWeightArray, int[] boneIndexArray, int influenceLimit, bool[] targetBones)
         {
             int dominantBoneIndex = -1;
             float dominantBoneWeight = 0.0f;
             bool dominantBoneIsTarget = false;
 
-            for (int n = 0; n < 4; ++n)
+            for (int n = 0; n < influenceLimit; ++n)
             {
                 int boneIndex = boneIndexArray[n];
 
@@ -317,6 +318,15 @@ namespace MagicaClothColliderBuilder
                     continue;
                 }
 
+                int targetLocalBoneIndex = ResolveTargetLocalBoneIndex(i, boneIndex);
+
+                if (targetLocalBoneIndex < 0 || targetLocalBoneIndex >= meshBindPoses.Length)
+                {
+                    passedVertex[i] = false;
+                    continue;
+                }
+
+                boneIndices[i] = targetLocalBoneIndex;
                 ++remakeVertexCount;
             }
 
@@ -354,6 +364,40 @@ namespace MagicaClothColliderBuilder
 
             m_BoneVertices = remakeVertices;
             m_BoneTriangles = remappedTriangles.ToArray();
+        }
+
+        private int ResolveTargetLocalBoneIndex(int vertexIndex, int fallbackBoneIndex)
+        {
+            var rendererIndices = m_BoneMeshCache.MeshVertexRendererIndices;
+            var rendererBoneStarts = m_BoneMeshCache.RendererBoneStartIndices;
+            var rendererBoneCounts = m_BoneMeshCache.RendererBoneCounts;
+            var meshBones = m_BoneMeshCache.MeshBones;
+
+            if (rendererIndices == null || rendererBoneStarts == null || rendererBoneCounts == null)
+            {
+                return fallbackBoneIndex;
+            }
+
+            int rendererIndex = rendererIndices[vertexIndex];
+
+            if (rendererIndex < 0 || rendererIndex >= rendererBoneStarts.Length || rendererIndex >= rendererBoneCounts.Length)
+            {
+                return fallbackBoneIndex;
+            }
+
+            int start = rendererBoneStarts[rendererIndex];
+            int end = Mathf.Min(start + rendererBoneCounts[rendererIndex], meshBones.Length);
+            var targetTransform = m_BoneGameObject.transform;
+
+            for (int i = start; i < end; ++i)
+            {
+                if (meshBones[i] == targetTransform)
+                {
+                    return i;
+                }
+            }
+
+            return fallbackBoneIndex;
         }
     }
 }

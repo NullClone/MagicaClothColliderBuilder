@@ -16,6 +16,9 @@ namespace MagicaClothColliderBuilder
         private BoneWeight[] m_MeshBoneWeights;
         private Vector3[] m_MeshVertices;
         private int[] m_MeshTriangles;
+        private int[] m_MeshVertexRendererIndices;
+        private int[] m_RendererBoneStartIndices;
+        private int[] m_RendererBoneCounts;
         private bool[] m_TargetBones;
         private bool[] m_TargetVertices;
         private bool[] m_PassedVertices;
@@ -42,6 +45,12 @@ namespace MagicaClothColliderBuilder
 
         public int[] MeshTriangles => m_MeshTriangles;
 
+        public int[] MeshVertexRendererIndices => m_MeshVertexRendererIndices;
+
+        public int[] RendererBoneStartIndices => m_RendererBoneStartIndices;
+
+        public int[] RendererBoneCounts => m_RendererBoneCounts;
+
         public bool[] TargetBones => m_TargetBones;
 
         public bool[] TargetVertices => m_TargetVertices;
@@ -59,6 +68,10 @@ namespace MagicaClothColliderBuilder
 
         public void Process(GameObject gameObject, List<SkinnedMeshRenderer> customSkinnedMeshRenderers = null)
         {
+            m_MeshVertexCount = 0;
+            m_MeshTriangleCount = 0;
+            m_MeshBoneCount = 0;
+
             if (gameObject == null)
             {
                 return;
@@ -69,12 +82,13 @@ namespace MagicaClothColliderBuilder
             if (customSkinnedMeshRenderers != null && customSkinnedMeshRenderers.Count > 0)
             {
                 var validRenderers = new List<SkinnedMeshRenderer>(customSkinnedMeshRenderers.Count);
+                var seenRenderers = new HashSet<SkinnedMeshRenderer>();
 
                 for (int i = 0; i < customSkinnedMeshRenderers.Count; ++i)
                 {
                     var renderer = customSkinnedMeshRenderers[i];
 
-                    if (renderer == null || validRenderers.Contains(renderer))
+                    if (renderer == null || !seenRenderers.Add(renderer))
                     {
                         continue;
                     }
@@ -117,6 +131,9 @@ namespace MagicaClothColliderBuilder
             m_MeshBoneWeights = new BoneWeight[m_MeshVertexCount];
             m_MeshVertices = new Vector3[m_MeshVertexCount];
             m_MeshTriangles = new int[m_MeshTriangleCount];
+            m_MeshVertexRendererIndices = new int[m_MeshVertexCount];
+            m_RendererBoneStartIndices = new int[skinnedMeshRenderers.Length];
+            m_RendererBoneCounts = new int[skinnedMeshRenderers.Length];
             m_TargetBones = new bool[m_MeshBoneCount];
             m_TargetVertices = new bool[m_MeshVertexCount];
             m_PassedVertices = new bool[m_MeshVertexCount];
@@ -132,6 +149,7 @@ namespace MagicaClothColliderBuilder
             int meshRendererBoneIndex = 0;
             int meshRendererVertexIndex = 0;
             int meshRendererTriangleIndex = 0;
+            int meshRendererIndex = 0;
 
             foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
             {
@@ -149,15 +167,19 @@ namespace MagicaClothColliderBuilder
 
                     if (boneWeights == null || boneWeights.Length == 0) continue;
 
+                    m_RendererBoneStartIndices[meshRendererIndex] = meshRendererBoneIndex;
+                    m_RendererBoneCounts[meshRendererIndex] = bones.Length;
+
                     for (int i = 0; i < bones.Length; ++i)
                     {
                         m_MeshBones[meshRendererBoneIndex + i] = bones[i];
-                        m_MeshBindPoses[meshRendererBoneIndex + i] = bindPoses[i];
+                        m_MeshBindPoses[meshRendererBoneIndex + i] = bindPoses != null && i < bindPoses.Length ? bindPoses[i] : Matrix4x4.identity;
                     }
 
                     for (int i = 0; i < vertices.Length; ++i)
                     {
                         m_MeshVertices[meshRendererVertexIndex + i] = vertices[i];
+                        m_MeshVertexRendererIndices[meshRendererVertexIndex + i] = meshRendererIndex;
 
                         var boneWeight = boneWeights[i];
 
@@ -178,6 +200,8 @@ namespace MagicaClothColliderBuilder
                     meshRendererVertexIndex += vertices.Length;
                     meshRendererTriangleIndex += triangles.Length;
                 }
+
+                ++meshRendererIndex;
             }
         }
 

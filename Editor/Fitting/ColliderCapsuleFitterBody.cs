@@ -16,6 +16,7 @@ namespace MagicaClothColliderBuilder
 
             var boneTransform = job.TargetBone.transform;
             var bodySettings = job.Property.BodyFitProperty;
+            FitMode fitMode = ResolveFitMode(job, boneRole);
             var worldHorizontal = bodySettings.HorizontalAxis == BodyHorizontalAxis.RootForward
                 ? (boneTransform.root != null ? boneTransform.root.forward : Vector3.forward)
                 : (boneTransform.root != null ? boneTransform.root.right : Vector3.right);
@@ -76,13 +77,17 @@ namespace MagicaClothColliderBuilder
                 length = Mathf.Min(length, hipsMaxLength);
             }
 
-            if (!TryRadialWeighted(rotated, job.Triangles, bodySettings.RadiusPercentile, out float radius))
+            float radiusPercentile = bodySettings.GetRadiusPercentile(fitMode);
+
+            if (!TryRadialWeighted(rotated, job.Triangles, radiusPercentile, out float radius))
             {
-                radius = Percentile(radialValues, bodySettings.RadiusPercentile);
+                radius = Percentile(radialValues, radiusPercentile);
             }
 
             radius *= bodySettings.GetRadiusScale(boneRole);
-            radius = Mathf.Clamp(radius, bodySettings.MinRadius, Mathf.Max(bodySettings.MinRadius, length * bodySettings.MaxRadiusByLengthRatio));
+            float maxRadius = Mathf.Max(bodySettings.MinRadius, length * bodySettings.MaxRadiusByLengthRatio);
+            maxRadius *= bodySettings.GetRadiusCapScale(fitMode);
+            radius = Mathf.Clamp(radius, bodySettings.MinRadius, maxRadius);
 
             fitResult = new CapsuleFitResult
             {

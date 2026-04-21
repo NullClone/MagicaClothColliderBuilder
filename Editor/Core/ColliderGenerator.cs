@@ -1,7 +1,6 @@
 using MagicaCloth2;
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using UnityEngine;
 
 namespace MagicaClothColliderBuilder
@@ -15,6 +14,22 @@ namespace MagicaClothColliderBuilder
         private readonly Animator m_Animator;
         private readonly List<SkinnedMeshRenderer> m_CustomSkinnedMeshes;
         private readonly Action<float, string> m_ProgressReporter;
+
+        private struct FitQualitySummary
+        {
+            public int Count;
+            public float CoverageSum;
+            public float MaxOverflowSum;
+            public float WorstOverflow;
+
+            public void Add(float coverage, float maxOverflow)
+            {
+                ++Count;
+                CoverageSum += coverage;
+                MaxOverflowSum += maxOverflow;
+                WorstOverflow = Mathf.Max(WorstOverflow, maxOverflow);
+            }
+        }
 
 
         // Methods
@@ -74,7 +89,7 @@ namespace MagicaClothColliderBuilder
             var generationJobs = new List<ColliderGenerationJob>();
             var bonesWithoutMesh = new List<Transform>();
 
-            ReportProgress(0.26f, "Preparing per-bone jobs...");
+            ReportProgress(0.24f, "Extracting per-bone meshes...");
 
             int boneCount = bonesToProcess.Count;
 
@@ -94,38 +109,44 @@ namespace MagicaClothColliderBuilder
                 if (boneCount > 0 && ((i & 3) == 0 || i + 1 == boneCount))
                 {
                     float t = (i + 1) / (float)boneCount;
+                    string boneName = bonesToProcess[i] != null ? bonesToProcess[i].name : "Unknown";
 
-                    ReportProgress(Mathf.Lerp(0.26f, 0.58f, t), $"Preparing jobs ({i + 1}/{boneCount})...");
+                    ReportProgress(Mathf.Lerp(0.24f, 0.64f, t), $"Extracting mesh for {boneName} ({i + 1}/{boneCount})...");
                 }
             }
 
-            ReportProgress(0.62f, "Reducing meshes in parallel...");
+            ReportProgress(0.66f, "Fitting collider shapes...");
 
-            ExecuteJobs(generationJobs);
-
-            ReportProgress(0.74f, "Creating colliders...");
-
-            createdColliders.AddRange(CreateCollidersFromResults(generationJobs));
+            var qualitySummary = new FitQualitySummary();
+            createdColliders.AddRange(CreateCollidersFromResults(generationJobs, ref qualitySummary));
 
             for (int i = 0; i < bonesWithoutMesh.Count; ++i)
             {
                 var boneToFix = bonesWithoutMesh[i];
+                ReportProgress(
+                    Mathf.Lerp(0.90f, 0.98f, (i + 1) / (float)Mathf.Max(1, bonesWithoutMesh.Count)),
+                    $"Creating fallback collider for {boneToFix.name} ({i + 1}/{bonesWithoutMesh.Count})...");
+
                 var fallbackCollider = CreateDefaultColliderForBone(boneToFix);
 
                 if (fallbackCollider != null)
                 {
                     createdColliders.Add(fallbackCollider);
                 }
-
-                if (bonesWithoutMesh.Count > 0 && ((i & 3) == 0 || i + 1 == bonesWithoutMesh.Count))
-                {
-                    float t = (i + 1) / (float)bonesWithoutMesh.Count;
-
-                    ReportProgress(Mathf.Lerp(0.90f, 0.98f, t), $"Creating fallback colliders ({i + 1}/{bonesWithoutMesh.Count})...");
-                }
             }
 
             Debug.Log($"Collider generation complete. Created {createdColliders.Count} colliders.");
+
+            if (qualitySummary.Count > 0)
+            {
+                float averageCoverage = qualitySummary.CoverageSum / qualitySummary.Count;
+                float averageMaxOverflow = qualitySummary.MaxOverflowSum / qualitySummary.Count;
+                Debug.Log(
+                    $"Collider fit quality: {qualitySummary.Count} fitted colliders, " +
+                    $"average coverage {averageCoverage:P1}, " +
+                    $"average max overflow {averageMaxOverflow:F4}m, " +
+                    $"worst overflow {qualitySummary.WorstOverflow:F4}m.");
+            }
 
             ReportProgress(1.0f, "Done.");
 
@@ -169,6 +190,12 @@ namespace MagicaClothColliderBuilder
                 return m_Property.GenerationProperty.IncludeFingers;
             }
 
+            if ((boneId == HumanBodyBones.LeftHand || boneId == HumanBodyBones.RightHand) &&
+                m_Property.GenerationProperty.IncludeFingers)
+            {
+                return false;
+            }
+
             if (boneId == HumanBodyBones.Hips)
             {
                 return m_Property.GenerationProperty.IncludeHips;
@@ -197,31 +224,7 @@ namespace MagicaClothColliderBuilder
             return boneId >= HumanBodyBones.LeftThumbProximal && boneId <= HumanBodyBones.RightLittleDistal;
         }
 
-        private void ExecuteJobs(List<ColliderGenerationJob> jobs)
-        {
-            if (jobs == null || jobs.Count == 0) return;
-
-            using var countdownEvent = new CountdownEvent(jobs.Count);
-
-            foreach (var job in jobs)
-            {
-                job.m_CountdownEvent = countdownEvent;
-
-                if (!ThreadPool.QueueUserWorkItem(job.Execute))
-                {
-                    countdownEvent.Signal();
-
-                    Debug.LogError($"Failed to queue collider generation job for bone '{job.TargetBone.name}'.");
-                }
-            }
-
-            if (!countdownEvent.Wait(System.TimeSpan.FromSeconds(30.0f)))
-            {
-                Debug.LogError("Collider generation jobs timed out after 30 seconds.");
-            }
-        }
-
-        private List<MagicaCapsuleCollider> CreateCollidersFromResults(List<ColliderGenerationJob> jobs)
+        private List<MagicaCapsuleCollider> CreateCollidersFromResults(List<ColliderGenerationJob> jobs, ref FitQualitySummary qualitySummary)
         {
             var createdColliders = new List<MagicaCapsuleCollider>();
 
@@ -233,8 +236,22 @@ namespace MagicaClothColliderBuilder
             for (int i = 0; i < jobs.Count; ++i)
             {
                 var job = jobs[i];
+                string boneName = job.TargetBone != null ? job.TargetBone.name : "Unknown";
+                ReportProgress(Mathf.Lerp(0.66f, 0.88f, (i + 1) / (float)jobs.Count), $"Fitting {boneName} ({i + 1}/{jobs.Count})...");
 
                 if (!ColliderCapsuleFitter.TryFitCapsule(job, out var fitResult)) continue;
+
+                if (TryEvaluateFitQuality(job, fitResult, out float coverage, out float maxOverflow))
+                {
+                    qualitySummary.Add(coverage, maxOverflow);
+
+                    if (coverage < 0.92f || maxOverflow > 0.025f)
+                    {
+                        Debug.LogWarning(
+                            $"Collider fit for '{boneName}' may need review. " +
+                            $"Coverage: {coverage:P1}, max overflow: {maxOverflow:F4}m.");
+                    }
+                }
 
                 var collider = CreateColliderGameObject(job, fitResult);
 
@@ -242,16 +259,54 @@ namespace MagicaClothColliderBuilder
                 {
                     createdColliders.Add(collider);
                 }
-
-                if ((i & 3) == 0 || i + 1 == jobs.Count)
-                {
-                    float t = (i + 1) / (float)jobs.Count;
-
-                    ReportProgress(Mathf.Lerp(0.74f, 0.90f, t), $"Fitting colliders ({i + 1}/{jobs.Count})...");
-                }
             }
 
             return createdColliders;
+        }
+
+        private static bool TryEvaluateFitQuality(ColliderGenerationJob job, CapsuleFitResult fitResult, out float coverage, out float maxOverflow)
+        {
+            coverage = 0.0f;
+            maxOverflow = 0.0f;
+
+            var vertices = job.Vertices;
+
+            if (vertices == null || vertices.Length == 0)
+            {
+                return false;
+            }
+
+            Quaternion inverseRotation = Quaternion.Inverse(fitResult.LocalRotation);
+            float halfLength = Mathf.Max(0.0f, fitResult.Length * 0.5f);
+            float minY = fitResult.Center.y - halfLength;
+            float maxY = fitResult.Center.y + halfLength;
+            int insideCount = 0;
+
+            for (int i = 0; i < vertices.Length; ++i)
+            {
+                Vector3 local = inverseRotation * vertices[i];
+                float clampedY = Mathf.Clamp(local.y, minY, maxY);
+                float t = Mathf.InverseLerp(minY, maxY, clampedY);
+                float allowedRadius = Mathf.Lerp(fitResult.RadiusAtMin, fitResult.RadiusAtMax, t);
+                float dx = local.x - fitResult.Center.x;
+                float dz = local.z - fitResult.Center.z;
+                float radialOverflow = Mathf.Max(0.0f, Mathf.Sqrt((dx * dx) + (dz * dz)) - allowedRadius);
+                float axialOverflow = Mathf.Abs(local.y - clampedY);
+                float overflow = Mathf.Sqrt((radialOverflow * radialOverflow) + (axialOverflow * axialOverflow));
+
+                if (overflow <= 0.001f)
+                {
+                    ++insideCount;
+                }
+
+                if (overflow > maxOverflow)
+                {
+                    maxOverflow = overflow;
+                }
+            }
+
+            coverage = insideCount / (float)vertices.Length;
+            return true;
         }
 
         private static MagicaCapsuleCollider CreateColliderGameObject(ColliderGenerationJob job, CapsuleFitResult fitResult)
@@ -286,27 +341,37 @@ namespace MagicaClothColliderBuilder
             if (boneTransform.childCount > 0)
             {
                 float maxDistance = 0f;
+                Vector3 longestChildLocal = Vector3.up * 0.05f;
 
                 foreach (Transform child in boneTransform)
                 {
-                    float distance = Vector3.Distance(boneTransform.position, child.position);
+                    Vector3 childLocal = child.localPosition;
+                    float distance = childLocal.magnitude;
 
                     if (distance > maxDistance)
                     {
                         maxDistance = distance;
+                        longestChildLocal = childLocal;
                     }
                 }
 
-                float radius = maxDistance > 0.001f ? maxDistance : 0.05f;
+                float radius = Mathf.Clamp(maxDistance * 0.18f, 0.01f, 0.08f);
+                float length = Mathf.Max(maxDistance, radius * 2.0f);
 
                 if (ColliderCapsuleFitter.DetectBoneFitRole(boneTransform) == BoneFitRole.UpperChest)
                 {
                     radius *= 1.1f;
                 }
 
-                capsuleCollider.SetSize(radius, radius, 0.01f);
-                capsuleCollider.center = Vector3.zero;
+                if (longestChildLocal.sqrMagnitude > 1.0e-8f)
+                {
+                    colliderGameObject.transform.localRotation = Quaternion.FromToRotation(Vector3.up, longestChildLocal.normalized);
+                }
+
+                capsuleCollider.SetSize(radius, radius, length);
+                capsuleCollider.center = new Vector3(0.0f, length * 0.5f, 0.0f);
                 capsuleCollider.direction = MagicaCapsuleCollider.Direction.Y;
+                capsuleCollider.UpdateParameters();
                 return capsuleCollider;
             }
             else
@@ -323,6 +388,7 @@ namespace MagicaClothColliderBuilder
                 capsuleCollider.SetSize(defaultRadius, defaultRadius, defaultLength);
                 capsuleCollider.center = Vector3.zero;
                 capsuleCollider.direction = MagicaCapsuleCollider.Direction.Y;
+                capsuleCollider.UpdateParameters();
                 return capsuleCollider;
             }
         }

@@ -29,6 +29,11 @@ namespace MagicaClothColliderBuilder
                 return true;
             }
 
+            if (IsHumanoidFingerBone(animator, boneTransform))
+            {
+                return true;
+            }
+
             string boneName = boneTransform.name.ToLowerInvariant();
 
             if (boneName.Contains("upperleg") ||
@@ -77,6 +82,56 @@ namespace MagicaClothColliderBuilder
                 role == BoneFitRole.Spine ||
                 role == BoneFitRole.Chest ||
                 role == BoneFitRole.UpperChest;
+        }
+
+        private static FitMode ResolveFitMode(ColliderGenerationJob job, BoneFitRole role)
+        {
+            if (job == null || job.Property == null)
+            {
+                return FitMode.Balanced;
+            }
+
+            return ResolveFitMode(job.Property.GenerationProperty, job.Animator, job.TargetBone != null ? job.TargetBone.transform : null, role);
+        }
+
+        private static FitMode ResolveFitMode(GenerationProperty settings, Animator animator, Transform boneTransform, BoneFitRole role)
+        {
+            if (settings == null)
+            {
+                return FitMode.Balanced;
+            }
+
+            if (IsHumanoidFingerBone(animator, boneTransform))
+            {
+                return settings.FingerFitMode;
+            }
+
+            if (IsHumanoidArmBone(animator, boneTransform))
+            {
+                return settings.ArmFitMode;
+            }
+
+            if (IsHumanoidLegBone(animator, boneTransform))
+            {
+                return settings.LegFitMode;
+            }
+
+            if (IsHumanoidToeBone(animator, boneTransform))
+            {
+                return settings.ToeFitMode;
+            }
+
+            if (role == BoneFitRole.Head || role == BoneFitRole.Neck)
+            {
+                return settings.HeadFitMode;
+            }
+
+            if (IsBodyRole(role))
+            {
+                return settings.BodyFitMode;
+            }
+
+            return settings.DefaultFitMode;
         }
 
         private static bool TryChildHint(Animator animator, Transform boneTransform, out Vector3 directionHint)
@@ -148,9 +203,71 @@ namespace MagicaClothColliderBuilder
             return hasValid;
         }
 
+        private static bool IsHumanoidFingerBone(Animator animator, Transform boneTransform)
+        {
+            if (animator == null || boneTransform == null)
+            {
+                return false;
+            }
+
+            for (int i = (int)HumanBodyBones.LeftThumbProximal; i <= (int)HumanBodyBones.RightLittleDistal; ++i)
+            {
+                if (boneTransform == animator.GetBoneTransform((HumanBodyBones)i))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsHumanoidArmBone(Animator animator, Transform boneTransform)
+        {
+            if (animator == null || boneTransform == null)
+            {
+                return false;
+            }
+
+            return boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftUpperArm) ||
+                   boneTransform == animator.GetBoneTransform(HumanBodyBones.RightUpperArm) ||
+                   boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftLowerArm) ||
+                   boneTransform == animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
+        }
+
+        private static bool IsHumanoidLegBone(Animator animator, Transform boneTransform)
+        {
+            if (animator == null || boneTransform == null)
+            {
+                return false;
+            }
+
+            return boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg) ||
+                   boneTransform == animator.GetBoneTransform(HumanBodyBones.RightUpperLeg) ||
+                   boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg) ||
+                   boneTransform == animator.GetBoneTransform(HumanBodyBones.RightLowerLeg) ||
+                   boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftFoot) ||
+                   boneTransform == animator.GetBoneTransform(HumanBodyBones.RightFoot);
+        }
+
+        private static bool IsHumanoidToeBone(Animator animator, Transform boneTransform)
+        {
+            if (animator == null || boneTransform == null)
+            {
+                return false;
+            }
+
+            return boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftToes) ||
+                   boneTransform == animator.GetBoneTransform(HumanBodyBones.RightToes);
+        }
+
         private static bool TryHumanoidHint(Animator animator, Transform boneTransform, out Vector3 directionHint)
         {
             directionHint = Vector3.zero;
+
+            if (animator == null || boneTransform == null)
+            {
+                return false;
+            }
 
             HumanBodyBones nextBone = HumanBodyBones.LastBone;
 
@@ -185,6 +302,86 @@ namespace MagicaClothColliderBuilder
             else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.RightLowerArm))
             {
                 nextBone = HumanBodyBones.RightHand;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftThumbProximal))
+            {
+                nextBone = HumanBodyBones.LeftThumbIntermediate;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftThumbIntermediate))
+            {
+                nextBone = HumanBodyBones.LeftThumbDistal;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.RightThumbProximal))
+            {
+                nextBone = HumanBodyBones.RightThumbIntermediate;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.RightThumbIntermediate))
+            {
+                nextBone = HumanBodyBones.RightThumbDistal;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftIndexProximal))
+            {
+                nextBone = HumanBodyBones.LeftIndexIntermediate;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftIndexIntermediate))
+            {
+                nextBone = HumanBodyBones.LeftIndexDistal;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.RightIndexProximal))
+            {
+                nextBone = HumanBodyBones.RightIndexIntermediate;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.RightIndexIntermediate))
+            {
+                nextBone = HumanBodyBones.RightIndexDistal;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftMiddleProximal))
+            {
+                nextBone = HumanBodyBones.LeftMiddleIntermediate;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftMiddleIntermediate))
+            {
+                nextBone = HumanBodyBones.LeftMiddleDistal;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.RightMiddleProximal))
+            {
+                nextBone = HumanBodyBones.RightMiddleIntermediate;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.RightMiddleIntermediate))
+            {
+                nextBone = HumanBodyBones.RightMiddleDistal;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftRingProximal))
+            {
+                nextBone = HumanBodyBones.LeftRingIntermediate;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftRingIntermediate))
+            {
+                nextBone = HumanBodyBones.LeftRingDistal;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.RightRingProximal))
+            {
+                nextBone = HumanBodyBones.RightRingIntermediate;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.RightRingIntermediate))
+            {
+                nextBone = HumanBodyBones.RightRingDistal;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftLittleProximal))
+            {
+                nextBone = HumanBodyBones.LeftLittleIntermediate;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftLittleIntermediate))
+            {
+                nextBone = HumanBodyBones.LeftLittleDistal;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.RightLittleProximal))
+            {
+                nextBone = HumanBodyBones.RightLittleIntermediate;
+            }
+            else if (boneTransform == animator.GetBoneTransform(HumanBodyBones.RightLittleIntermediate))
+            {
+                nextBone = HumanBodyBones.RightLittleDistal;
             }
 
             if (nextBone == HumanBodyBones.LastBone)
