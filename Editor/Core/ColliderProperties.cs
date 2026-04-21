@@ -75,6 +75,24 @@ namespace MagicaClothColliderBuilder
         public float SpineRadiusScale = 0.95f;
         public float ChestRadiusScale = 1.0f;
         public float UpperChestRadiusScale = 1.12f;
+
+        public float GetLengthPercentile(BoneFitRole role) => role switch
+        {
+            BoneFitRole.Hips => HipsLengthPercentile,
+            BoneFitRole.Spine => SpineLengthPercentile,
+            BoneFitRole.Chest => ChestLengthPercentile,
+            BoneFitRole.UpperChest => UpperChestLengthPercentile,
+            _ => ChestLengthPercentile,
+        };
+
+        public float GetRadiusScale(BoneFitRole role) => role switch
+        {
+            BoneFitRole.Hips => HipsRadiusScale,
+            BoneFitRole.Spine => SpineRadiusScale,
+            BoneFitRole.Chest => ChestRadiusScale,
+            BoneFitRole.UpperChest => UpperChestRadiusScale,
+            _ => ChestRadiusScale,
+        };
     }
 
     [Serializable]
@@ -122,6 +140,38 @@ namespace MagicaClothColliderBuilder
         public float HipsMaxLengthByBoneRatio = 1.35f;
         public float MaxRadiusByBoneRatio = 0.70f;
         public float MaxRadiusByLengthRatio = 0.70f;
+
+        public float GetFitPercentile(BoneFitRole role) => role switch
+        {
+            BoneFitRole.Hips => HipsFitPercentile,
+            BoneFitRole.Spine or BoneFitRole.Chest or BoneFitRole.Neck => SpineChestFitPercentile,
+            BoneFitRole.UpperChest => UpperChestFitPercentile,
+            _ => DefaultFitPercentile,
+        };
+
+        public float GetCenterYRatio(BoneFitRole role) => role switch
+        {
+            BoneFitRole.Hips => HipsCenterYRatio,
+            BoneFitRole.Spine or BoneFitRole.Chest => SpineChestCenterYRatio,
+            BoneFitRole.UpperChest => UpperChestCenterYRatio,
+            _ => 0.5f,
+        };
+
+        public float GetRadiusScale(BoneFitRole role) => role switch
+        {
+            BoneFitRole.Hips => HipsRadiusScale,
+            BoneFitRole.Spine or BoneFitRole.Chest => SpineChestRadiusScale,
+            BoneFitRole.UpperChest => UpperChestRadiusScale,
+            _ => 1.0f,
+        };
+
+        public (float lower, float upper) GetPercentileBounds(BoneFitRole role) => role switch
+        {
+            BoneFitRole.Hips => (HipsLowerPercentile, HipsUpperPercentile),
+            BoneFitRole.Spine or BoneFitRole.Chest => (SpineChestLowerPercentile, SpineChestUpperPercentile),
+            BoneFitRole.UpperChest => (UpperChestLowerPercentile, UpperChestUpperPercentile),
+            _ => (DefaultLowerPercentile, DefaultUpperPercentile),
+        };
     }
 
     public class SABoneColliderProperty

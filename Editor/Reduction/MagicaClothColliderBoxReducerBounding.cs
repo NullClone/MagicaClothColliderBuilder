@@ -141,87 +141,34 @@ namespace MagicaClothColliderBuilder
             int mediumStep = 5;
             int fineStep = 1;
 
-            var beginEuler = new Vector3Int(0, 0, 0);
-            var endEuler = new Vector3Int(180, 180, 180);
-
-            if (!m_OptimizeRotationX)
-            {
-                beginEuler.x = 0;
-                endEuler.x = 1;
-            }
-
-            if (!m_OptimizeRotationY)
-            {
-                beginEuler.y = 0;
-                endEuler.y = 1;
-            }
-
-            if (!m_OptimizeRotationZ)
-            {
-                beginEuler.z = 0;
-                endEuler.z = 1;
-            }
-
             m_MinBounding = new MinBounding();
 
+            var beginEuler = new Vector3Int(0, 0, 0);
+            var endEuler = new Vector3Int(180, 180, 180);
+            ClampRotationSearchAxes(ref beginEuler, ref endEuler);
             ProcessBoundingBoxAabbRange(m_VertexList, m_UsedVertexList, minCenter, beginEuler, endEuler, coarseStep);
 
-            int fx = m_MinBounding.Euler.x;
-            int fy = m_MinBounding.Euler.y;
-            int fz = m_MinBounding.Euler.z;
-
-            beginEuler = new Vector3Int(fx - coarseStep, fy - coarseStep, fz - coarseStep);
-            endEuler = new Vector3Int(fx + coarseStep, fy + coarseStep, fz + coarseStep);
-
-            if (!m_OptimizeRotationX)
-            {
-                beginEuler.x = 0;
-                endEuler.x = 1;
-            }
-            if (!m_OptimizeRotationY)
-            {
-                beginEuler.y = 0;
-                endEuler.y = 1;
-            }
-            if (!m_OptimizeRotationZ)
-            {
-                beginEuler.z = 0;
-                endEuler.z = 1;
-            }
-
+            beginEuler = new Vector3Int(m_MinBounding.Euler.x - coarseStep, m_MinBounding.Euler.y - coarseStep, m_MinBounding.Euler.z - coarseStep);
+            endEuler   = new Vector3Int(m_MinBounding.Euler.x + coarseStep, m_MinBounding.Euler.y + coarseStep, m_MinBounding.Euler.z + coarseStep);
+            ClampRotationSearchAxes(ref beginEuler, ref endEuler);
             ProcessBoundingBoxAabbRange(m_VertexList, m_UsedVertexList, minCenter, beginEuler, endEuler, mediumStep);
 
-            fx = m_MinBounding.Euler.x;
-            fy = m_MinBounding.Euler.y;
-            fz = m_MinBounding.Euler.z;
-
-            beginEuler = new Vector3Int(fx - mediumStep, fy - mediumStep, fz - mediumStep);
-            endEuler = new Vector3Int(fx + mediumStep, fy + mediumStep, fz + mediumStep);
-
-            if (!m_OptimizeRotationX)
-            {
-                beginEuler.x = 0;
-                endEuler.x = 1;
-            }
-
-            if (!m_OptimizeRotationY)
-            {
-                beginEuler.y = 0;
-                endEuler.y = 1;
-            }
-
-            if (!m_OptimizeRotationZ)
-            {
-                beginEuler.z = 0;
-                endEuler.z = 1;
-            }
-
+            beginEuler = new Vector3Int(m_MinBounding.Euler.x - mediumStep, m_MinBounding.Euler.y - mediumStep, m_MinBounding.Euler.z - mediumStep);
+            endEuler   = new Vector3Int(m_MinBounding.Euler.x + mediumStep, m_MinBounding.Euler.y + mediumStep, m_MinBounding.Euler.z + mediumStep);
+            ClampRotationSearchAxes(ref beginEuler, ref endEuler);
             ProcessBoundingBoxAabbRange(m_VertexList, m_UsedVertexList, minCenter, beginEuler, endEuler, fineStep);
 
             var euler = m_MinBounding.Euler;
             minBoxA = m_MinBounding.BoxA;
             minBoxB = m_MinBounding.BoxB;
             minEuler = new Vector3(euler.x, euler.y, euler.z);
+        }
+
+        private void ClampRotationSearchAxes(ref Vector3Int beginEuler, ref Vector3Int endEuler)
+        {
+            if (!m_OptimizeRotationX) { beginEuler.x = 0; endEuler.x = 1; }
+            if (!m_OptimizeRotationY) { beginEuler.y = 0; endEuler.y = 1; }
+            if (!m_OptimizeRotationZ) { beginEuler.z = 0; endEuler.z = 1; }
         }
 
         private bool TryGetSliceBoundingBoxAabb(int dimension, ref Vector3 boxA, ref Vector3 boxB, float minValue, float maxValue)

@@ -8,10 +8,15 @@ namespace MagicaClothColliderBuilder
 {
     public class ColliderGenerator
     {
+        // Fields
+
         private readonly GameObject m_AvatarRoot;
         private readonly SABoneColliderProperty m_Property;
         private readonly Animator m_Animator;
         private readonly Action<float, string> m_ProgressReporter;
+
+
+        // Methods
 
         public ColliderGenerator(GameObject avatarRoot, SABoneColliderProperty properties, Action<float, string> progressReporter = null)
         {
@@ -30,12 +35,14 @@ namespace MagicaClothColliderBuilder
             if (m_Animator == null || m_Animator.avatar == null || !m_Animator.avatar.isHuman)
             {
                 Debug.LogError("Animator with a valid Humanoid Avatar is required on the root object.");
+
                 return createdColliders;
             }
 
             if (m_AvatarRoot.GetComponentsInChildren<MagicaCapsuleCollider>(true).Length > 0)
             {
                 Debug.LogWarning("Generation skipped: existing MagicaCapsuleCollider components were found. Please cleanup first if you want to regenerate.");
+
                 return createdColliders;
             }
 
@@ -46,6 +53,7 @@ namespace MagicaClothColliderBuilder
             if (bonesToProcess.Count == 0)
             {
                 Debug.LogWarning("No human bones found to process.");
+
                 return createdColliders;
             }
 
@@ -57,6 +65,7 @@ namespace MagicaClothColliderBuilder
             if (boneMeshCache.MeshBoneCount == 0)
             {
                 Debug.LogError("No skinned meshes found to generate colliders from.");
+
                 return createdColliders;
             }
 
@@ -69,8 +78,7 @@ namespace MagicaClothColliderBuilder
 
             for (int i = 0; i < boneCount; ++i)
             {
-                Transform boneTransform = bonesToProcess[i];
-                var job = new ColliderGenerationJob(boneTransform.gameObject, m_Property, boneMeshCache);
+                var job = new ColliderGenerationJob(bonesToProcess[i].gameObject, m_Animator, m_Property, boneMeshCache);
 
                 if (job.Prepare())
                 {
@@ -78,20 +86,23 @@ namespace MagicaClothColliderBuilder
                 }
                 else
                 {
-                    bonesWithoutMesh.Add(boneTransform);
+                    bonesWithoutMesh.Add(bonesToProcess[i]);
                 }
 
                 if (boneCount > 0 && ((i & 3) == 0 || i + 1 == boneCount))
                 {
                     float t = (i + 1) / (float)boneCount;
+
                     ReportProgress(Mathf.Lerp(0.26f, 0.58f, t), $"Preparing jobs ({i + 1}/{boneCount})...");
                 }
             }
 
             ReportProgress(0.62f, "Reducing meshes in parallel...");
+
             ExecuteJobs(generationJobs);
 
             ReportProgress(0.74f, "Creating colliders...");
+
             createdColliders.AddRange(CreateCollidersFromResults(generationJobs));
 
             for (int i = 0; i < bonesWithoutMesh.Count; ++i)
@@ -107,11 +118,13 @@ namespace MagicaClothColliderBuilder
                 if (bonesWithoutMesh.Count > 0 && ((i & 3) == 0 || i + 1 == bonesWithoutMesh.Count))
                 {
                     float t = (i + 1) / (float)bonesWithoutMesh.Count;
+
                     ReportProgress(Mathf.Lerp(0.90f, 0.98f, t), $"Creating fallback colliders ({i + 1}/{bonesWithoutMesh.Count})...");
                 }
             }
 
             Debug.Log($"Collider generation complete. Created {createdColliders.Count} colliders.");
+
             ReportProgress(1.0f, "Done.");
 
             return createdColliders;
@@ -179,41 +192,30 @@ namespace MagicaClothColliderBuilder
 
         private static bool IsFingerBone(HumanBodyBones boneId)
         {
-            return
-                boneId == HumanBodyBones.LeftThumbProximal || boneId == HumanBodyBones.LeftThumbIntermediate || boneId == HumanBodyBones.LeftThumbDistal ||
-                boneId == HumanBodyBones.LeftIndexProximal || boneId == HumanBodyBones.LeftIndexIntermediate || boneId == HumanBodyBones.LeftIndexDistal ||
-                boneId == HumanBodyBones.LeftMiddleProximal || boneId == HumanBodyBones.LeftMiddleIntermediate || boneId == HumanBodyBones.LeftMiddleDistal ||
-                boneId == HumanBodyBones.LeftRingProximal || boneId == HumanBodyBones.LeftRingIntermediate || boneId == HumanBodyBones.LeftRingDistal ||
-                boneId == HumanBodyBones.LeftLittleProximal || boneId == HumanBodyBones.LeftLittleIntermediate || boneId == HumanBodyBones.LeftLittleDistal ||
-                boneId == HumanBodyBones.RightThumbProximal || boneId == HumanBodyBones.RightThumbIntermediate || boneId == HumanBodyBones.RightThumbDistal ||
-                boneId == HumanBodyBones.RightIndexProximal || boneId == HumanBodyBones.RightIndexIntermediate || boneId == HumanBodyBones.RightIndexDistal ||
-                boneId == HumanBodyBones.RightMiddleProximal || boneId == HumanBodyBones.RightMiddleIntermediate || boneId == HumanBodyBones.RightMiddleDistal ||
-                boneId == HumanBodyBones.RightRingProximal || boneId == HumanBodyBones.RightRingIntermediate || boneId == HumanBodyBones.RightRingDistal ||
-                boneId == HumanBodyBones.RightLittleProximal || boneId == HumanBodyBones.RightLittleIntermediate || boneId == HumanBodyBones.RightLittleDistal;
+            return boneId >= HumanBodyBones.LeftThumbProximal && boneId <= HumanBodyBones.RightLittleDistal;
         }
 
         private void ExecuteJobs(List<ColliderGenerationJob> jobs)
         {
             if (jobs == null || jobs.Count == 0) return;
 
-            using (var countdownEvent = new CountdownEvent(jobs.Count))
+            using var countdownEvent = new CountdownEvent(jobs.Count);
+
+            foreach (var job in jobs)
             {
-                foreach (var job in jobs)
-                {
-                    job.m_CountdownEvent = countdownEvent;
+                job.m_CountdownEvent = countdownEvent;
 
-                    if (!ThreadPool.QueueUserWorkItem(job.Execute))
-                    {
-                        // Signal immediately so the wait count stays consistent when queueing fails.
-                        countdownEvent.Signal();
-                        Debug.LogError($"Failed to queue collider generation job for bone '{job.TargetBone.name}'.");
-                    }
-                }
-
-                if (!countdownEvent.Wait(System.TimeSpan.FromSeconds(30.0f)))
+                if (!ThreadPool.QueueUserWorkItem(job.Execute))
                 {
-                    Debug.LogError("Collider generation jobs timed out after 30 seconds.");
+                    countdownEvent.Signal();
+
+                    Debug.LogError($"Failed to queue collider generation job for bone '{job.TargetBone.name}'.");
                 }
+            }
+
+            if (!countdownEvent.Wait(System.TimeSpan.FromSeconds(30.0f)))
+            {
+                Debug.LogError("Collider generation jobs timed out after 30 seconds.");
             }
         }
 
@@ -242,6 +244,7 @@ namespace MagicaClothColliderBuilder
                 if ((i & 3) == 0 || i + 1 == jobs.Count)
                 {
                     float t = (i + 1) / (float)jobs.Count;
+
                     ReportProgress(Mathf.Lerp(0.74f, 0.90f, t), $"Fitting colliders ({i + 1}/{jobs.Count})...");
                 }
             }
@@ -263,6 +266,7 @@ namespace MagicaClothColliderBuilder
             capsuleCollider.SetSize(fitResult.RadiusAtMin, fitResult.RadiusAtMax, fitResult.Length);
             capsuleCollider.reverseDirection = fitResult.ReverseDirection;
             capsuleCollider.UpdateParameters();
+
             return capsuleCollider;
         }
 

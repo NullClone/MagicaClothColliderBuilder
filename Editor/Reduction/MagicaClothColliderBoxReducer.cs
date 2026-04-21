@@ -4,6 +4,8 @@ namespace MagicaClothColliderBuilder
 {
     public partial class MagicaClothColliderBoxReducer
     {
+        // Fields
+
         private ReduceMode m_ReduceMode = ReduceMode.Mesh;
         private SliceMode m_SliceMode = SliceMode.Auto;
         private Vector3 m_MinThickness = Vector3.zero;
@@ -39,6 +41,9 @@ namespace MagicaClothColliderBuilder
         private readonly bool m_CenterEnabled;
         private readonly int m_SliceCount = 31;
 
+
+        // Properties
+
         public ReduceMode ReduceMode { set { m_ReduceMode = value; } }
 
         public Vector3 MinThickness { set { m_MinThickness = value; } }
@@ -65,13 +70,8 @@ namespace MagicaClothColliderBuilder
 
         public bool PostfixTransform { set { m_PostfixTransform = value; } }
 
-        public Quaternion ReducedRotation { get { return m_ReducedRotation; } }
 
-        public Vector3 ReducedCenter { get { return m_ReducedCenter; } }
-
-        public Vector3 ReducedBoxA { get { return m_ReducedBoxA; } }
-
-        public Vector3 ReducedBoxB { get { return m_ReducedBoxB; } }
+        // Methods
 
         public void Reduce()
         {
@@ -169,6 +169,7 @@ namespace MagicaClothColliderBuilder
                 }
             }
         }
+
 
         private void BuildUsedVertexList()
         {

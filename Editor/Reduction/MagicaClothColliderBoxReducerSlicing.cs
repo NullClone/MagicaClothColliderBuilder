@@ -7,145 +7,14 @@ namespace MagicaClothColliderBuilder
     {
         private bool TryMakeSlicedBoundingBoxAabb()
         {
-            int sliceCount = m_SliceCount;
-            float floatSliceCount = m_SliceCount;
-
             int minimumDimension = -1;
             float minimumVolume = 0.0f;
             Vector3[] minimumBoxA = null;
             Vector3[] minimumBoxB = null;
 
-            for (int i = 0; i < 3; ++i)
+            for (int dim = 0; dim < 3; ++dim)
             {
-                var tempBoxA = new List<Vector3>(sliceCount);
-                var tempBoxB = new List<Vector3>(sliceCount);
-
-                switch (i)
-                {
-                    case 0:
-                        if (minimumDimension < 0 || m_SliceMode == SliceMode.Auto || m_SliceMode == SliceMode.X)
-                        {
-                            Vector3 boundingBoxA = m_BoundingBoxA;
-                            Vector3 boundingBoxB = m_BoundingBoxB;
-                            boundingBoxA[0] += m_ThicknessA[0];
-                            boundingBoxB[0] += m_ThicknessB[0];
-
-                            float minValue = boundingBoxA.x;
-                            float stepValue = (boundingBoxB.x - boundingBoxA.x) / floatSliceCount;
-                            float tempVolume = 0.0f;
-
-                            for (int n = 0; n < sliceCount; ++n)
-                            {
-                                float maxValue = minValue + stepValue;
-                                Vector3 boxA = Vector3.zero;
-                                Vector3 boxB = Vector3.zero;
-
-                                if (TryGetSliceBoundingBoxAabb(0, ref boxA, ref boxB, minValue, maxValue))
-                                {
-                                    boxA.x = minValue;
-                                    boxB.x = maxValue;
-                                    tempBoxA.Add(boxA);
-                                    tempBoxB.Add(boxB);
-                                    tempVolume += GetBoxVolume(boxA, boxB);
-                                }
-
-                                minValue = maxValue;
-                            }
-
-                            if (tempVolume > Mathf.Epsilon)
-                            {
-                                minimumDimension = 0;
-                                minimumVolume = tempVolume;
-                                minimumBoxA = tempBoxA.ToArray();
-                                minimumBoxB = tempBoxB.ToArray();
-                            }
-                        }
-                        break;
-                    case 1:
-                        if (minimumDimension < 0 || m_SliceMode == SliceMode.Auto || m_SliceMode == SliceMode.Y)
-                        {
-                            Vector3 boundingBoxA = m_BoundingBoxA;
-                            Vector3 boundingBoxB = m_BoundingBoxB;
-                            boundingBoxA[1] += m_ThicknessA[1];
-                            boundingBoxB[1] += m_ThicknessB[1];
-
-                            float minValue = boundingBoxA.y;
-                            float stepValue = (boundingBoxB.y - boundingBoxA.y) / floatSliceCount;
-                            float tempVolume = 0.0f;
-
-                            for (int n = 0; n < sliceCount; ++n)
-                            {
-                                float maxValue = minValue + stepValue;
-                                Vector3 boxA = Vector3.zero;
-                                Vector3 boxB = Vector3.zero;
-
-                                if (TryGetSliceBoundingBoxAabb(1, ref boxA, ref boxB, minValue, maxValue))
-                                {
-                                    boxA.y = minValue;
-                                    boxB.y = maxValue;
-                                    tempBoxA.Add(boxA);
-                                    tempBoxB.Add(boxB);
-                                    tempVolume += GetBoxVolume(boxA, boxB);
-                                }
-
-                                minValue = maxValue;
-                            }
-
-                            if (tempVolume > Mathf.Epsilon)
-                            {
-                                if (m_SliceMode == SliceMode.Y || minimumVolume > tempVolume)
-                                {
-                                    minimumDimension = 1;
-                                    minimumVolume = tempVolume;
-                                    minimumBoxA = tempBoxA.ToArray();
-                                    minimumBoxB = tempBoxB.ToArray();
-                                }
-                            }
-                        }
-                        break;
-                    case 2:
-                        if (minimumDimension < 0 || m_SliceMode == SliceMode.Auto || m_SliceMode == SliceMode.Z)
-                        {
-                            Vector3 boundingBoxA = m_BoundingBoxA;
-                            Vector3 boundingBoxB = m_BoundingBoxB;
-                            boundingBoxA[2] += m_ThicknessA[2];
-                            boundingBoxB[2] += m_ThicknessB[2];
-
-                            float minValue = boundingBoxA.z;
-                            float stepValue = (boundingBoxB.z - boundingBoxA.z) / floatSliceCount;
-                            float tempVolume = 0.0f;
-
-                            for (int n = 0; n < sliceCount; ++n)
-                            {
-                                float maxValue = minValue + stepValue;
-                                Vector3 boxA = Vector3.zero;
-                                Vector3 boxB = Vector3.zero;
-
-                                if (TryGetSliceBoundingBoxAabb(2, ref boxA, ref boxB, minValue, maxValue))
-                                {
-                                    boxA.z = minValue;
-                                    boxB.z = maxValue;
-                                    tempBoxA.Add(boxA);
-                                    tempBoxB.Add(boxB);
-                                    tempVolume += GetBoxVolume(boxA, boxB);
-                                }
-
-                                minValue = maxValue;
-                            }
-
-                            if (tempVolume > Mathf.Epsilon)
-                            {
-                                if (m_SliceMode == SliceMode.Z || minimumVolume > tempVolume)
-                                {
-                                    minimumDimension = 2;
-                                    minimumVolume = tempVolume;
-                                    minimumBoxA = tempBoxA.ToArray();
-                                    minimumBoxB = tempBoxB.ToArray();
-                                }
-                            }
-                        }
-                        break;
-                }
+                TrySliceAlongAxis(dim, ref minimumDimension, ref minimumVolume, ref minimumBoxA, ref minimumBoxB);
             }
 
             if (minimumDimension < 0 || minimumBoxA == null || minimumBoxA.Length == 0) return false;
@@ -254,6 +123,62 @@ namespace MagicaClothColliderBuilder
             }
 
             return true;
+        }
+
+        private static readonly SliceMode[] s_DimSliceMode = { SliceMode.X, SliceMode.Y, SliceMode.Z };
+
+        private void TrySliceAlongAxis(int dim, ref int minimumDimension, ref float minimumVolume, ref Vector3[] minimumBoxA, ref Vector3[] minimumBoxB)
+        {
+            SliceMode dimMode = s_DimSliceMode[dim];
+
+            // Skip if a result already exists and this axis was not explicitly requested.
+            if (minimumDimension >= 0 && m_SliceMode != SliceMode.Auto && m_SliceMode != dimMode)
+            {
+                return;
+            }
+
+            Vector3 boundingBoxA = m_BoundingBoxA;
+            Vector3 boundingBoxB = m_BoundingBoxB;
+            boundingBoxA[dim] += m_ThicknessA[dim];
+            boundingBoxB[dim] += m_ThicknessB[dim];
+
+            float minValue = boundingBoxA[dim];
+            float stepValue = (boundingBoxB[dim] - boundingBoxA[dim]) / m_SliceCount;
+            float tempVolume = 0.0f;
+
+            var tempBoxA = new List<Vector3>(m_SliceCount);
+            var tempBoxB = new List<Vector3>(m_SliceCount);
+
+            for (int n = 0; n < m_SliceCount; ++n)
+            {
+                float maxValue = minValue + stepValue;
+                Vector3 boxA = Vector3.zero;
+                Vector3 boxB = Vector3.zero;
+
+                if (TryGetSliceBoundingBoxAabb(dim, ref boxA, ref boxB, minValue, maxValue))
+                {
+                    boxA[dim] = minValue;
+                    boxB[dim] = maxValue;
+                    tempBoxA.Add(boxA);
+                    tempBoxB.Add(boxB);
+                    tempVolume += GetBoxVolume(boxA, boxB);
+                }
+
+                minValue = maxValue;
+            }
+
+            if (tempVolume <= Mathf.Epsilon) return;
+
+            bool isForced = m_SliceMode == dimMode;
+            bool isBetterOrFirst = minimumDimension < 0 || minimumVolume > tempVolume;
+
+            if (isForced || isBetterOrFirst)
+            {
+                minimumDimension = dim;
+                minimumVolume = tempVolume;
+                minimumBoxA = tempBoxA.ToArray();
+                minimumBoxB = tempBoxB.ToArray();
+            }
         }
 
         private void MakeSlicedListFromAabb(Vector3 boxA, Vector3 boxB)

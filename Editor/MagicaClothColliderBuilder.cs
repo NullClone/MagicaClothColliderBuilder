@@ -18,11 +18,17 @@ namespace MagicaClothColliderBuilder
             Reducer,
         }
 
+
+        // Fields
+
         private Vector2 m_ScrollPosition;
         private GameObject m_TargetAvatarRoot;
         private SettingsTab m_SelectedTab;
         private SABoneColliderProperty m_Settings = new();
         private List<MagicaCapsuleCollider> m_GeneratedColliders = new();
+
+
+        // Methods
 
         [MenuItem("Tools/Magica Cloth2/Collider Builder")]
         public static void ShowWindow()

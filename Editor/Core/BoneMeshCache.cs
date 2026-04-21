@@ -1,11 +1,12 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace MagicaClothColliderBuilder
 {
     public class BoneMeshCache
     {
+        // Fields
+
         private int m_MeshVertexCount;
         private int m_MeshTriangleCount;
         private int m_MeshBoneCount;
@@ -20,6 +21,9 @@ namespace MagicaClothColliderBuilder
         private bool[] m_ProcessedVertices;
         private int[] m_RedirectIndices;
         private int[] m_BoneIndices;
+
+
+        // Properties
 
         public int MeshVertexCount => m_MeshVertexCount;
 
@@ -49,9 +53,14 @@ namespace MagicaClothColliderBuilder
 
         public int[] BoneIndices => m_BoneIndices;
 
+
+        // Methods
+
         public void Process(GameObject gameObject)
         {
-            var skinnedMeshRenderers = GetSkinnedMeshRenderers(gameObject);
+            if (gameObject == null) return;
+
+            var skinnedMeshRenderers = gameObject.GetComponentsInChildren<SkinnedMeshRenderer>();
 
             if (skinnedMeshRenderers == null || skinnedMeshRenderers.Length == 0) return;
 
@@ -142,7 +151,7 @@ namespace MagicaClothColliderBuilder
             }
         }
 
-        public void CleanWork()
+        public void Clear()
         {
             Array.Clear(m_TargetBones, 0, m_TargetBones.Length);
             Array.Clear(m_TargetVertices, 0, m_TargetVertices.Length);
@@ -157,41 +166,6 @@ namespace MagicaClothColliderBuilder
             for (int i = 0; i < m_BoneIndices.Length; ++i)
             {
                 m_BoneIndices[i] = -1;
-            }
-        }
-
-        private static SkinnedMeshRenderer[] GetSkinnedMeshRenderers(GameObject gameObject)
-        {
-            if (gameObject == null) return null;
-
-            var skinnedMeshRenderers = new List<SkinnedMeshRenderer>();
-
-            if (gameObject.TryGetComponent<SkinnedMeshRenderer>(out var skinnedMeshRenderer))
-            {
-                skinnedMeshRenderers.Add(skinnedMeshRenderer);
-            }
-
-            GetSkinnedMeshRenderersInChildren(skinnedMeshRenderers, gameObject);
-
-            return skinnedMeshRenderers.ToArray();
-        }
-
-        private static void GetSkinnedMeshRenderersInChildren(List<SkinnedMeshRenderer> skinnedMeshRenderers, GameObject gameObject)
-        {
-            if (skinnedMeshRenderers != null && gameObject != null)
-            {
-                foreach (Transform childTransform in gameObject.transform)
-                {
-                    if (childTransform.gameObject.GetComponent<Animator>() == null)
-                    {
-                        if (childTransform.gameObject.TryGetComponent<SkinnedMeshRenderer>(out var skinnedMeshRenderer))
-                        {
-                            skinnedMeshRenderers.Add(skinnedMeshRenderer);
-                        }
-
-                        GetSkinnedMeshRenderersInChildren(skinnedMeshRenderers, childTransform.gameObject);
-                    }
-                }
             }
         }
     }
