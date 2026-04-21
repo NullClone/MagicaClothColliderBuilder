@@ -66,15 +66,22 @@ namespace MagicaClothColliderBuilder
 
             float halfLength = Percentile(absYValues, bodySettings.GetLengthPercentile(boneRole));
             float length = Mathf.Max(bodySettings.MinLength, halfLength * 2.0f);
+            float jointDistance = GetBodyJointDistance(job.Animator, boneTransform, boneRole);
 
             if (boneRole == BoneFitRole.Hips)
             {
-                float hipsSpineDistance = GetHipsSpineLen(job.Animator, boneTransform);
-                float maxByBone = hipsSpineDistance > 1.0e-6f
-                    ? Mathf.Max(bodySettings.MinLength, hipsSpineDistance * bodySettings.HipsMaxLengthBySpineDistance)
+                float maxByBone = jointDistance > 1.0e-6f
+                    ? Mathf.Max(bodySettings.MinLength, jointDistance * bodySettings.HipsMaxLengthBySpineDistance)
                     : bodySettings.HipsMaxLength;
                 float hipsMaxLength = Mathf.Max(bodySettings.MinLength, Mathf.Min(bodySettings.HipsMaxLength, maxByBone));
                 length = Mathf.Min(length, hipsMaxLength);
+            }
+
+            float bendSafeMaxLength = GetBendSafeMaxLength(bodySettings, boneRole, jointDistance);
+
+            if (bendSafeMaxLength > 1.0e-6f)
+            {
+                length = Mathf.Min(length, bendSafeMaxLength);
             }
 
             float radiusPercentile = bodySettings.GetRadiusPercentile(fitMode);
@@ -87,13 +94,15 @@ namespace MagicaClothColliderBuilder
             radius *= bodySettings.GetRadiusScale(boneRole);
             float maxRadius = Mathf.Max(bodySettings.MinRadius, length * bodySettings.MaxRadiusByLengthRatio);
             maxRadius *= bodySettings.GetRadiusCapScale(fitMode);
+            maxRadius *= bodySettings.BendSafeRadiusScale;
             radius = Mathf.Clamp(radius, bodySettings.MinRadius, maxRadius);
+            Vector3 center = ResolveBendSafeCenter(rotated, length, radius, bodySettings);
 
             fitResult = new CapsuleFitResult
             {
                 LocalRotation = localRotation,
                 Direction = MagicaCapsuleCollider.Direction.Y,
-                Center = Vector3.zero,
+                Center = center,
                 Length = length,
                 RadiusAtMin = radius,
                 RadiusAtMax = radius,
@@ -101,6 +110,64 @@ namespace MagicaClothColliderBuilder
             };
 
             return true;
+        }
+
+        private static float GetBendSafeMaxLength(BodyFitProperty settings, BoneFitRole role, float jointDistance)
+        {
+            if (jointDistance <= 1.0e-6f)
+            {
+                return 0.0f;
+            }
+
+            float roleScale = role switch
+            {
+                BoneFitRole.Hips => 1.10f,
+                BoneFitRole.Spine => 1.20f,
+                BoneFitRole.Chest => 1.35f,
+                BoneFitRole.UpperChest => 1.10f,
+                _ => 1.20f,
+            };
+            float safeLength = (jointDistance * settings.BendSafeLengthScale * roleScale) - (settings.BendSafeJointMargin * 2.0f);
+
+            return Mathf.Max(settings.MinLength, safeLength);
+        }
+
+        private static Vector3 ResolveBendSafeCenter(Vector3[] rotated, float length, float radius, BodyFitProperty settings)
+        {
+            if (rotated == null || rotated.Length == 0)
+            {
+                return Vector3.zero;
+            }
+
+            float halfLength = length * 0.5f;
+            float centerLimit = Mathf.Max(0.0f, Mathf.Min(settings.BendSafeCenterLimit, radius * 0.35f));
+            var xValues = new List<float>(rotated.Length);
+            var zValues = new List<float>(rotated.Length);
+
+            for (int i = 0; i < rotated.Length; ++i)
+            {
+                Vector3 v = rotated[i];
+
+                if (Mathf.Abs(v.y) > halfLength + settings.BendSafeJointMargin)
+                {
+                    continue;
+                }
+
+                xValues.Add(v.x);
+                zValues.Add(v.z);
+            }
+
+            if (xValues.Count == 0)
+            {
+                return Vector3.zero;
+            }
+
+            Vector3 rotatedCenter = new Vector3(
+                Mathf.Clamp(Percentile(xValues, 50.0f), -centerLimit, centerLimit),
+                0.0f,
+                Mathf.Clamp(Percentile(zValues, 50.0f), -centerLimit, centerLimit));
+
+            return rotatedCenter;
         }
 
 
@@ -150,15 +217,38 @@ namespace MagicaClothColliderBuilder
             return bodyTransform.InverseTransformDirection(bodyTransform.root != null ? bodyTransform.root.up : Vector3.up).normalized;
         }
 
-        private static float GetHipsSpineLen(Animator animator, Transform hipsTransform)
+        private static float GetBodyJointDistance(Animator animator, Transform bodyTransform, BoneFitRole role)
         {
-            var spine = animator.GetBoneTransform(HumanBodyBones.Spine);
+            if (animator == null || bodyTransform == null)
+            {
+                return 0.0f;
+            }
 
-            if (spine == null) return 0f;
+            Transform target = null;
 
-            Vector3 localSpine = hipsTransform.InverseTransformPoint(spine.position);
+            if (role == BoneFitRole.Hips)
+            {
+                target = animator.GetBoneTransform(HumanBodyBones.Spine);
+            }
+            else if (role == BoneFitRole.Spine)
+            {
+                target = animator.GetBoneTransform(HumanBodyBones.Chest) ?? animator.GetBoneTransform(HumanBodyBones.UpperChest);
+            }
+            else if (role == BoneFitRole.Chest)
+            {
+                target = animator.GetBoneTransform(HumanBodyBones.UpperChest) ?? animator.GetBoneTransform(HumanBodyBones.Neck);
+            }
+            else if (role == BoneFitRole.UpperChest)
+            {
+                target = animator.GetBoneTransform(HumanBodyBones.Neck) ?? animator.GetBoneTransform(HumanBodyBones.Head);
+            }
 
-            return localSpine.magnitude;
+            if (target == null)
+            {
+                return 0.0f;
+            }
+
+            return bodyTransform.InverseTransformPoint(target.position).magnitude;
         }
     }
 }

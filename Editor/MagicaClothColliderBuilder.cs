@@ -208,6 +208,8 @@ namespace MagicaClothColliderBuilder
                 body.RadiusPercentile = EditorGUILayout.Slider("Radius Bias", body.RadiusPercentile, 40f, 95f);
                 body.MinLength = EditorGUILayout.Slider("Min Length", body.MinLength, 0.01f, 0.2f);
                 body.MinRadius = EditorGUILayout.Slider("Min Radius", body.MinRadius, 0.001f, 0.05f);
+                body.BendSafeLengthScale = EditorGUILayout.Slider("Bend Safe Length", body.BendSafeLengthScale, 0.7f, 2.2f);
+                body.BendSafeRadiusScale = EditorGUILayout.Slider("Bend Safe Radius", body.BendSafeRadiusScale, 0.55f, 1.0f);
             });
 
             DrawCard("Head", () =>
@@ -295,6 +297,8 @@ namespace MagicaClothColliderBuilder
                 body.HipsProjectAxisToSpinePlane = EditorGUILayout.Toggle("Hips Project Axis To Spine Plane", body.HipsProjectAxisToSpinePlane);
                 body.HipsMaxLengthBySpineDistance = EditorGUILayout.Slider("Hips Max Length / Spine Distance", body.HipsMaxLengthBySpineDistance, 0.5f, 4.0f);
                 body.MaxRadiusByLengthRatio = EditorGUILayout.Slider("Max Radius / Length", body.MaxRadiusByLengthRatio, 0.2f, 1.0f);
+                body.BendSafeJointMargin = EditorGUILayout.Slider("Bend Safe Joint Margin", body.BendSafeJointMargin, 0f, 0.05f);
+                body.BendSafeCenterLimit = EditorGUILayout.Slider("Bend Safe Center Limit", body.BendSafeCenterLimit, 0f, 0.08f);
             });
 
             DrawCard("Body Role Tuning", () =>
