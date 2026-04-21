@@ -246,23 +246,11 @@ namespace MagicaClothColliderBuilder
             DrawCard("Reducer", () =>
             {
                 ReducerProperty reducer = m_Settings.ReducerProperty;
-                reducer.EnableRotationSearch = EditorGUILayout.Toggle("Enable Rotation Search", reducer.EnableRotationSearch);
                 reducer.Scale = EditorGUILayout.Vector3Field("Scale", reducer.Scale);
                 reducer.MinThickness = EditorGUILayout.Vector3Field("Min Thickness", reducer.MinThickness);
                 reducer.MinThickness.x = Mathf.Max(0.0f, reducer.MinThickness.x);
                 reducer.MinThickness.y = Mathf.Max(0.0f, reducer.MinThickness.y);
                 reducer.MinThickness.z = Mathf.Max(0.0f, reducer.MinThickness.z);
-            });
-
-            DrawCard("Reducer Rotation Axes", () =>
-            {
-                ReducerProperty reducer = m_Settings.ReducerProperty;
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    reducer.OptimizeRotationX = EditorGUILayout.ToggleLeft("X", reducer.OptimizeRotationX, GUILayout.Width(60f));
-                    reducer.OptimizeRotationY = EditorGUILayout.ToggleLeft("Y", reducer.OptimizeRotationY, GUILayout.Width(60f));
-                    reducer.OptimizeRotationZ = EditorGUILayout.ToggleLeft("Z", reducer.OptimizeRotationZ, GUILayout.Width(60f));
-                }
             });
 
             DrawCard("Reducer Offsets", () =>

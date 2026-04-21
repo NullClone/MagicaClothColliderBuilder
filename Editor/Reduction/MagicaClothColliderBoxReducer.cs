@@ -13,11 +13,6 @@ namespace MagicaClothColliderBuilder
         private bool[] m_UsedVertexList;
         private int[] m_LineList;
         private Vector3 m_Center = Vector3.zero;
-        private Quaternion m_Rotation = Quaternion.identity;
-        private bool m_RotationEnabled;
-        public bool m_OptimizeRotationX = true;
-        public bool m_OptimizeRotationY = true;
-        public bool m_OptimizeRotationZ = true;
         private Vector3 m_Scale = Vector3.one;
         private Vector3 m_Offset = Vector3.zero;
         private Vector3 m_ThicknessA = Vector3.zero;
@@ -47,14 +42,6 @@ namespace MagicaClothColliderBuilder
         public ReduceMode ReduceMode { set { m_ReduceMode = value; } }
 
         public Vector3 MinThickness { set { m_MinThickness = value; } }
-
-        public Quaternion Rotation { set { m_RotationEnabled = true; m_Rotation = value; } }
-
-        public bool OptimizeRotationX { set { m_OptimizeRotationX = value; } }
-
-        public bool OptimizeRotationY { set { m_OptimizeRotationY = value; } }
-
-        public bool OptimizeRotationZ { set { m_OptimizeRotationZ = value; } }
 
         public Vector3 Scale { set { m_Scale = value; } }
 
@@ -89,18 +76,8 @@ namespace MagicaClothColliderBuilder
             m_ReducedBoxA = minBoxA;
             m_ReducedBoxB = minBoxB;
 
-            Quaternion reduceRotation;
-
-            if (m_RotationEnabled)
-            {
-                reduceRotation = InversedRotation(m_Rotation);
-                m_ReducedRotation = m_Rotation;
-            }
-            else
-            {
-                reduceRotation = Quaternion.Euler(minEuler);
-                m_ReducedRotation = InversedRotation(reduceRotation);
-            }
+            Quaternion reduceRotation = Quaternion.Euler(minEuler);
+            m_ReducedRotation = InversedRotation(reduceRotation);
 
             if (m_ReduceMode == ReduceMode.Mesh || m_ReduceMode == ReduceMode.BoxMesh)
             {

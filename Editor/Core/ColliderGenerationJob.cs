@@ -57,19 +57,11 @@ namespace MagicaClothColliderBuilder
                     LineList = TriangleToLineIndices(Triangles),
                     Scale = Property.ReducerProperty.Scale,
                     MinThickness = Property.ReducerProperty.MinThickness,
-                    OptimizeRotationX = Property.ReducerProperty.OptimizeRotationX,
-                    OptimizeRotationY = Property.ReducerProperty.OptimizeRotationY,
-                    OptimizeRotationZ = Property.ReducerProperty.OptimizeRotationZ,
                     Offset = Property.ReducerProperty.Offset,
                     ThicknessA = Property.ReducerProperty.ThicknessA,
                     ThicknessB = Property.ReducerProperty.ThicknessB,
                     PostfixTransform = true
                 };
-
-                if (!Property.ReducerProperty.EnableRotationSearch)
-                {
-                    reducer.Rotation = Quaternion.identity;
-                }
 
                 reducer.Reduce();
             }

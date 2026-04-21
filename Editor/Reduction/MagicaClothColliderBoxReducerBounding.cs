@@ -4,8 +4,6 @@ namespace MagicaClothColliderBuilder
 {
     public partial class MagicaClothColliderBoxReducer
     {
-        private MinBounding m_MinBounding;
-
         private static void ComputeMinThickness(ref float boxA, ref float boxB, float minThickness)
         {
             float depth = Mathf.Abs(boxB - boxA);
@@ -54,36 +52,6 @@ namespace MagicaClothColliderBuilder
             return (boxA + boxB) * 0.5f;
         }
 
-        private void ProcessBoundingBoxAabbRange(Vector3[] vertices, bool[] usedVertices, Vector3 minCenter, Vector3Int beginEuler, Vector3Int endEuler, int stepEuler)
-        {
-            if (vertices == null || usedVertices == null) return;
-
-            Matrix4x4 transform = Matrix4x4.identity;
-            MinBounding minBounding = new MinBounding();
-
-            for (int rz = beginEuler.z; rz < endEuler.z; rz += stepEuler)
-            {
-                for (int ry = beginEuler.y; ry < endEuler.y; ry += stepEuler)
-                {
-                    for (int rx = beginEuler.x; rx < endEuler.x; rx += stepEuler)
-                    {
-                        transform.SetTRS(Vector3.zero, Quaternion.Euler(rx, ry, rz), Vector3.one);
-                        Vector3 tempBoxA = Vector3.zero;
-                        Vector3 tempBoxB = Vector3.zero;
-
-                        GetBoundingBoxAabb(vertices, usedVertices, ref tempBoxA, ref tempBoxB, ref minCenter, ref transform);
-
-                        Vector3 size = tempBoxB - tempBoxA;
-                        float tempVolume = GetVolume(size);
-                        var tempEuler = new Vector3Int(rx, ry, rz);
-                        minBounding.Contain(tempBoxA, tempBoxB, tempEuler, tempVolume);
-                    }
-                }
-            }
-
-            m_MinBounding.Contain(ref minBounding);
-        }
-
         private static void GetBoundingBoxAabb(Vector3[] vertices, bool[] usedVertices, ref Vector3 boxA, ref Vector3 boxB, ref Vector3 minCenter, ref Matrix4x4 transform)
         {
             boxA = Vector3.zero;
@@ -124,51 +92,12 @@ namespace MagicaClothColliderBuilder
         {
             minCenter = m_CenterEnabled ? m_Center : GetBoundingBoxCenterAabb();
 
-            if (m_RotationEnabled)
-            {
-                minBoxA = Vector3.zero;
-                minBoxB = Vector3.zero;
-                minEuler = Vector3.zero;
+            minBoxA = Vector3.zero;
+            minBoxB = Vector3.zero;
+            minEuler = Vector3.zero;
 
-                var transform = RotationMatrix(InversedRotation(m_Rotation));
-
-                GetBoundingBoxAabb(ref minBoxA, ref minBoxB, ref minCenter, ref transform);
-
-                return;
-            }
-
-            int coarseStep = 20;
-            int mediumStep = 5;
-            int fineStep = 1;
-
-            m_MinBounding = new MinBounding();
-
-            var beginEuler = new Vector3Int(0, 0, 0);
-            var endEuler = new Vector3Int(180, 180, 180);
-            ClampRotationSearchAxes(ref beginEuler, ref endEuler);
-            ProcessBoundingBoxAabbRange(m_VertexList, m_UsedVertexList, minCenter, beginEuler, endEuler, coarseStep);
-
-            beginEuler = new Vector3Int(m_MinBounding.Euler.x - coarseStep, m_MinBounding.Euler.y - coarseStep, m_MinBounding.Euler.z - coarseStep);
-            endEuler   = new Vector3Int(m_MinBounding.Euler.x + coarseStep, m_MinBounding.Euler.y + coarseStep, m_MinBounding.Euler.z + coarseStep);
-            ClampRotationSearchAxes(ref beginEuler, ref endEuler);
-            ProcessBoundingBoxAabbRange(m_VertexList, m_UsedVertexList, minCenter, beginEuler, endEuler, mediumStep);
-
-            beginEuler = new Vector3Int(m_MinBounding.Euler.x - mediumStep, m_MinBounding.Euler.y - mediumStep, m_MinBounding.Euler.z - mediumStep);
-            endEuler   = new Vector3Int(m_MinBounding.Euler.x + mediumStep, m_MinBounding.Euler.y + mediumStep, m_MinBounding.Euler.z + mediumStep);
-            ClampRotationSearchAxes(ref beginEuler, ref endEuler);
-            ProcessBoundingBoxAabbRange(m_VertexList, m_UsedVertexList, minCenter, beginEuler, endEuler, fineStep);
-
-            var euler = m_MinBounding.Euler;
-            minBoxA = m_MinBounding.BoxA;
-            minBoxB = m_MinBounding.BoxB;
-            minEuler = new Vector3(euler.x, euler.y, euler.z);
-        }
-
-        private void ClampRotationSearchAxes(ref Vector3Int beginEuler, ref Vector3Int endEuler)
-        {
-            if (!m_OptimizeRotationX) { beginEuler.x = 0; endEuler.x = 1; }
-            if (!m_OptimizeRotationY) { beginEuler.y = 0; endEuler.y = 1; }
-            if (!m_OptimizeRotationZ) { beginEuler.z = 0; endEuler.z = 1; }
+            var transform = Matrix4x4.identity;
+            GetBoundingBoxAabb(ref minBoxA, ref minBoxB, ref minCenter, ref transform);
         }
 
         private bool TryGetSliceBoundingBoxAabb(int dimension, ref Vector3 boxA, ref Vector3 boxB, float minValue, float maxValue)
