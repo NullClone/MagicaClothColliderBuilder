@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace MagicaClothColliderBuilder
@@ -56,13 +57,42 @@ namespace MagicaClothColliderBuilder
 
         // Methods
 
-        public void Process(GameObject gameObject)
+        public void Process(GameObject gameObject, List<SkinnedMeshRenderer> customSkinnedMeshRenderers = null)
         {
-            if (gameObject == null) return;
+            if (gameObject == null)
+            {
+                return;
+            }
 
-            var skinnedMeshRenderers = gameObject.GetComponentsInChildren<SkinnedMeshRenderer>();
+            SkinnedMeshRenderer[] skinnedMeshRenderers;
 
-            if (skinnedMeshRenderers == null || skinnedMeshRenderers.Length == 0) return;
+            if (customSkinnedMeshRenderers != null && customSkinnedMeshRenderers.Count > 0)
+            {
+                var validRenderers = new List<SkinnedMeshRenderer>(customSkinnedMeshRenderers.Count);
+
+                for (int i = 0; i < customSkinnedMeshRenderers.Count; ++i)
+                {
+                    var renderer = customSkinnedMeshRenderers[i];
+
+                    if (renderer == null || validRenderers.Contains(renderer))
+                    {
+                        continue;
+                    }
+
+                    validRenderers.Add(renderer);
+                }
+
+                skinnedMeshRenderers = validRenderers.ToArray();
+            }
+            else
+            {
+                skinnedMeshRenderers = gameObject.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            }
+
+            if (skinnedMeshRenderers == null || skinnedMeshRenderers.Length == 0)
+            {
+                return;
+            }
 
             foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
             {

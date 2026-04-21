@@ -26,6 +26,8 @@ namespace MagicaClothColliderBuilder
         private SettingsTab m_SelectedTab;
         private SABoneColliderProperty m_Settings = new();
         private List<MagicaCapsuleCollider> m_GeneratedColliders = new();
+        private bool m_UseCustomSkinnedMeshes;
+        private List<SkinnedMeshRenderer> m_CustomSkinnedMeshes = new();
 
 
         // Methods
@@ -91,6 +93,53 @@ namespace MagicaClothColliderBuilder
                 }
             });
 
+            DrawCard("Source", () =>
+            {
+                EditorGUILayout.LabelField("Source Mode", m_UseCustomSkinnedMeshes ? "Custom" : "Auto (Children)");
+
+                if (!m_UseCustomSkinnedMeshes)
+                {
+                    if (GUILayout.Button("Use Custom Selection"))
+                    {
+                        m_UseCustomSkinnedMeshes = true;
+
+                        m_CustomSkinnedMeshes ??= new List<SkinnedMeshRenderer> { null };
+                    }
+
+                    return;
+                }
+
+                if (GUILayout.Button("Use Auto"))
+                {
+                    m_UseCustomSkinnedMeshes = false;
+
+                    return;
+                }
+
+                EditorGUILayout.Space();
+
+                for (int i = 0; i < m_CustomSkinnedMeshes.Count; ++i)
+                {
+                    EditorGUILayout.BeginHorizontal();
+
+                    m_CustomSkinnedMeshes[i] = (SkinnedMeshRenderer)EditorGUILayout.ObjectField($"Renderer {i + 1}", m_CustomSkinnedMeshes[i], typeof(SkinnedMeshRenderer), true);
+
+                    if (GUILayout.Button("-", GUILayout.Width(24f)))
+                    {
+                        m_CustomSkinnedMeshes.RemoveAt(i);
+
+                        --i;
+                    }
+
+                    EditorGUILayout.EndHorizontal();
+                }
+
+                if (GUILayout.Button("Add Slot"))
+                {
+                    m_CustomSkinnedMeshes.Add(null);
+                }
+            });
+
             DrawCard("Generation", () =>
             {
                 m_Settings.GenerationProperty.IncludeHips = EditorGUILayout.Toggle("Include Hips", m_Settings.GenerationProperty.IncludeHips);
@@ -102,6 +151,8 @@ namespace MagicaClothColliderBuilder
                 if (GUILayout.Button("Reset All Settings"))
                 {
                     m_Settings = new SABoneColliderProperty();
+                    m_UseCustomSkinnedMeshes = false;
+                    m_CustomSkinnedMeshes.Clear();
                 }
             });
         }
@@ -284,6 +335,7 @@ namespace MagicaClothColliderBuilder
                 var generator = new ColliderGenerator(
                     m_TargetAvatarRoot,
                     m_Settings,
+                    m_UseCustomSkinnedMeshes ? m_CustomSkinnedMeshes : null,
                     (progress, message) => EditorUtility.DisplayProgressBar(
                         "MagicaCloth2 Collider Builder",
                         message,

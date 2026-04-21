@@ -13,16 +13,18 @@ namespace MagicaClothColliderBuilder
         private readonly GameObject m_AvatarRoot;
         private readonly SABoneColliderProperty m_Property;
         private readonly Animator m_Animator;
+        private readonly List<SkinnedMeshRenderer> m_CustomSkinnedMeshes;
         private readonly Action<float, string> m_ProgressReporter;
 
 
         // Methods
 
-        public ColliderGenerator(GameObject avatarRoot, SABoneColliderProperty properties, Action<float, string> progressReporter = null)
+        public ColliderGenerator(GameObject avatarRoot, SABoneColliderProperty properties, List<SkinnedMeshRenderer> customSkinnedMeshes = null, Action<float, string> progressReporter = null)
         {
             m_AvatarRoot = avatarRoot;
             m_Property = properties;
             m_Animator = avatarRoot.GetComponent<Animator>();
+            m_CustomSkinnedMeshes = customSkinnedMeshes;
             m_ProgressReporter = progressReporter;
         }
 
@@ -60,7 +62,7 @@ namespace MagicaClothColliderBuilder
             ReportProgress(0.18f, "Building mesh cache...");
 
             var boneMeshCache = new BoneMeshCache();
-            boneMeshCache.Process(m_AvatarRoot);
+            boneMeshCache.Process(m_AvatarRoot, m_CustomSkinnedMeshes);
 
             if (boneMeshCache.MeshBoneCount == 0)
             {
