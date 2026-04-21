@@ -79,7 +79,7 @@ namespace MagicaClothColliderBuilder
 
             SkinnedMeshRenderer[] skinnedMeshRenderers;
 
-            if (customSkinnedMeshRenderers != null && customSkinnedMeshRenderers.Count > 0)
+            if (customSkinnedMeshRenderers != null)
             {
                 var validRenderers = new List<SkinnedMeshRenderer>(customSkinnedMeshRenderers.Count);
                 var seenRenderers = new HashSet<SkinnedMeshRenderer>();
