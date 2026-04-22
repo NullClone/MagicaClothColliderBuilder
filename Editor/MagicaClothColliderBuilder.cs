@@ -239,7 +239,6 @@ namespace MagicaClothColliderBuilder
             DrawCard("Head", () =>
             {
                 HeadFitProperty head = m_Settings.HeadFitProperty;
-                head.FitMethod = (HeadFitMethod)EditorGUILayout.EnumPopup("Fit Method", head.FitMethod);
                 head.RadiusScale = EditorGUILayout.Slider("Radius Scale", head.RadiusScale, 0.5f, 1.5f);
                 head.MinRadius = EditorGUILayout.Slider("Min Radius", head.MinRadius, 0.01f, 0.3f);
                 head.MaxRadius = EditorGUILayout.Slider("Max Radius", head.MaxRadius, head.MinRadius, 0.5f);
@@ -249,7 +248,6 @@ namespace MagicaClothColliderBuilder
             DrawCard("Head Advanced", () =>
             {
                 HeadFitProperty head = m_Settings.HeadFitProperty;
-                head.RadiusPercentile = EditorGUILayout.Slider("Radius Percentile", head.RadiusPercentile, 40f, 95f);
                 head.UseFaceForwardOffsetWhenNotAnchored = EditorGUILayout.Toggle("Use Face Offsets When Not Anchored", head.UseFaceForwardOffsetWhenNotAnchored);
                 head.LengthRatio = EditorGUILayout.Slider("Length Ratio (Roundness)", head.LengthRatio, 0.0f, 0.8f);
                 head.ForwardOffset = EditorGUILayout.Slider("Forward Offset", head.ForwardOffset, -0.05f, 0.08f);

@@ -121,10 +121,8 @@ namespace MagicaClothColliderBuilder
     [Serializable]
     public class HeadFitProperty
     {
-        public HeadFitMethod FitMethod = HeadFitMethod.FastBounds;
         public bool AnchorOuterStartToHeadTransform = true;
         public bool UseFaceForwardOffsetWhenNotAnchored = true;
-        public float RadiusPercentile = 72.0f;
         public float RadiusScale = 1.05f;
         public float MinRadius = 0.06f;
         public float MaxRadius = 0.25f;
@@ -259,12 +257,6 @@ namespace MagicaClothColliderBuilder
     {
         RootRight,
         RootForward,
-    }
-
-    public enum HeadFitMethod
-    {
-        FastBounds,
-        AccuratePercentile,
     }
 
     public enum FitMode
