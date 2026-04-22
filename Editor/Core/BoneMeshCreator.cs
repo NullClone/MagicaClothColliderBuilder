@@ -76,9 +76,11 @@ namespace MagicaClothColliderBuilder
         {
             int passedVertexCount = 0;
             var targetVertex = m_BoneMeshCache.TargetVertices;
+            var targetBones = m_BoneMeshCache.TargetBones;
             var boneIndices = m_BoneMeshCache.BoneIndices;
             var boneWeights = m_BoneMeshCache.MeshBoneWeights;
             var processedVertices = m_BoneMeshCache.ProcessedVertices;
+            var boneVertexCandidates = m_BoneMeshCache.BoneVertexCandidates;
             var boneWeightArray = new float[4];
             var boneIndexArray = new int[4];
             int influenceLimit = m_SplitProperty.BoneWeightType == BoneWeightType.Bone2 ? 2 : 4;
@@ -91,31 +93,134 @@ namespace MagicaClothColliderBuilder
                 m_SplitProperty.BoneWeight4 * 0.01f,
             };
 
-            for (int i = 0; i < m_BoneMeshCache.MeshVertexCount; ++i)
+            if (boneVertexCandidates == null || boneVertexCandidates.Length == 0)
             {
-                if (processedVertices[i]) continue;
+                return PopulateTargetVerticesByFullScan(
+                    targetVertex,
+                    boneIndices,
+                    boneWeights,
+                    processedVertices,
+                    boneWeightArray,
+                    boneIndexArray,
+                    influenceLimit,
+                    weightThresholds);
+            }
 
-                boneWeightArray[0] = boneWeights[i].weight0;
-                boneWeightArray[1] = boneWeights[i].weight1;
-                boneWeightArray[2] = boneWeights[i].weight2;
-                boneWeightArray[3] = boneWeights[i].weight3;
-                boneIndexArray[0] = boneWeights[i].boneIndex0;
-                boneIndexArray[1] = boneWeights[i].boneIndex1;
-                boneIndexArray[2] = boneWeights[i].boneIndex2;
-                boneIndexArray[3] = boneWeights[i].boneIndex3;
+            int visitStamp = m_BoneMeshCache.NextVertexCandidateVisitStamp();
+            var visitStamps = m_BoneMeshCache.VertexCandidateVisitStamps;
 
-                int targetBoneIndex = ResolveTargetBoneIndex(boneWeightArray, boneIndexArray, influenceLimit, weightThresholds);
+            for (int boneIndex = 0; boneIndex < targetBones.Length; ++boneIndex)
+            {
+                if (!targetBones[boneIndex] || boneIndex >= boneVertexCandidates.Length)
+                {
+                    continue;
+                }
 
-                if (targetBoneIndex == -1) continue;
+                var candidates = boneVertexCandidates[boneIndex];
 
-                boneIndices[i] = targetBoneIndex;
-                targetVertex[i] = true;
-                processedVertices[i] = true;
+                if (candidates == null)
+                {
+                    continue;
+                }
 
-                ++passedVertexCount;
+                for (int i = 0; i < candidates.Length; ++i)
+                {
+                    int vertexIndex = candidates[i];
+
+                    if (vertexIndex < 0 || vertexIndex >= m_BoneMeshCache.MeshVertexCount)
+                    {
+                        continue;
+                    }
+
+                    if (visitStamps[vertexIndex] == visitStamp)
+                    {
+                        continue;
+                    }
+
+                    visitStamps[vertexIndex] = visitStamp;
+
+                    if (TryPopulateTargetVertex(
+                        vertexIndex,
+                        targetVertex,
+                        boneIndices,
+                        boneWeights,
+                        processedVertices,
+                        boneWeightArray,
+                        boneIndexArray,
+                        influenceLimit,
+                        weightThresholds))
+                    {
+                        ++passedVertexCount;
+                    }
+                }
             }
 
             return passedVertexCount > 0;
+        }
+
+        private bool PopulateTargetVerticesByFullScan(
+            bool[] targetVertex,
+            int[] boneIndices,
+            BoneWeight[] boneWeights,
+            bool[] processedVertices,
+            float[] boneWeightArray,
+            int[] boneIndexArray,
+            int influenceLimit,
+            float[] weightThresholds)
+        {
+            int passedVertexCount = 0;
+
+            for (int i = 0; i < m_BoneMeshCache.MeshVertexCount; ++i)
+            {
+                if (TryPopulateTargetVertex(
+                    i,
+                    targetVertex,
+                    boneIndices,
+                    boneWeights,
+                    processedVertices,
+                    boneWeightArray,
+                    boneIndexArray,
+                    influenceLimit,
+                    weightThresholds))
+                {
+                    ++passedVertexCount;
+                }
+            }
+
+            return passedVertexCount > 0;
+        }
+
+        private bool TryPopulateTargetVertex(
+            int vertexIndex,
+            bool[] targetVertex,
+            int[] boneIndices,
+            BoneWeight[] boneWeights,
+            bool[] processedVertices,
+            float[] boneWeightArray,
+            int[] boneIndexArray,
+            int influenceLimit,
+            float[] weightThresholds)
+        {
+            if (processedVertices[vertexIndex]) return false;
+
+            boneWeightArray[0] = boneWeights[vertexIndex].weight0;
+            boneWeightArray[1] = boneWeights[vertexIndex].weight1;
+            boneWeightArray[2] = boneWeights[vertexIndex].weight2;
+            boneWeightArray[3] = boneWeights[vertexIndex].weight3;
+            boneIndexArray[0] = boneWeights[vertexIndex].boneIndex0;
+            boneIndexArray[1] = boneWeights[vertexIndex].boneIndex1;
+            boneIndexArray[2] = boneWeights[vertexIndex].boneIndex2;
+            boneIndexArray[3] = boneWeights[vertexIndex].boneIndex3;
+
+            int targetBoneIndex = ResolveTargetBoneIndex(boneWeightArray, boneIndexArray, influenceLimit, weightThresholds);
+
+            if (targetBoneIndex == -1) return false;
+
+            boneIndices[vertexIndex] = targetBoneIndex;
+            targetVertex[vertexIndex] = true;
+            processedVertices[vertexIndex] = true;
+
+            return true;
         }
 
         private int ResolveTargetBoneIndex(float[] boneWeightArray, int[] boneIndexArray, int influenceLimit, float[] weightThresholds)

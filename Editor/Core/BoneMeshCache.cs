@@ -25,6 +25,9 @@ namespace MagicaClothColliderBuilder
         private bool[] m_ProcessedVertices;
         private int[] m_RedirectIndices;
         private int[] m_BoneIndices;
+        private int[][] m_BoneVertexCandidates;
+        private int[] m_VertexCandidateVisitStamps;
+        private int m_VertexCandidateVisitStamp;
 
 
         // Properties
@@ -62,6 +65,10 @@ namespace MagicaClothColliderBuilder
         public int[] RedirectIndices => m_RedirectIndices;
 
         public int[] BoneIndices => m_BoneIndices;
+
+        public int[][] BoneVertexCandidates => m_BoneVertexCandidates;
+
+        public int[] VertexCandidateVisitStamps => m_VertexCandidateVisitStamps;
 
 
         // Methods
@@ -140,6 +147,8 @@ namespace MagicaClothColliderBuilder
             m_ProcessedVertices = new bool[m_MeshVertexCount];
             m_RedirectIndices = new int[m_MeshVertexCount];
             m_BoneIndices = new int[m_MeshVertexCount];
+            m_VertexCandidateVisitStamps = new int[m_MeshVertexCount];
+            m_VertexCandidateVisitStamp = 0;
 
             for (int i = 0; i < m_BoneIndices.Length; ++i)
             {
@@ -203,6 +212,21 @@ namespace MagicaClothColliderBuilder
 
                 ++meshRendererIndex;
             }
+
+            BuildBoneVertexCandidates();
+        }
+
+        public int NextVertexCandidateVisitStamp()
+        {
+            ++m_VertexCandidateVisitStamp;
+
+            if (m_VertexCandidateVisitStamp == int.MaxValue)
+            {
+                Array.Clear(m_VertexCandidateVisitStamps, 0, m_VertexCandidateVisitStamps.Length);
+                m_VertexCandidateVisitStamp = 1;
+            }
+
+            return m_VertexCandidateVisitStamp;
         }
 
         public void Clear()
@@ -221,6 +245,76 @@ namespace MagicaClothColliderBuilder
             {
                 m_BoneIndices[i] = -1;
             }
+        }
+
+        private void BuildBoneVertexCandidates()
+        {
+            m_BoneVertexCandidates = new int[m_MeshBoneCount][];
+
+            if (m_MeshBoneCount == 0 || m_MeshVertexCount == 0)
+            {
+                return;
+            }
+
+            var candidateCounts = new int[m_MeshBoneCount];
+
+            for (int i = 0; i < m_MeshBoneWeights.Length; ++i)
+            {
+                var boneWeight = m_MeshBoneWeights[i];
+
+                CountCandidate(candidateCounts, boneWeight.boneIndex0, boneWeight.weight0, -1, -1, -1);
+                CountCandidate(candidateCounts, boneWeight.boneIndex1, boneWeight.weight1, boneWeight.boneIndex0, -1, -1);
+                CountCandidate(candidateCounts, boneWeight.boneIndex2, boneWeight.weight2, boneWeight.boneIndex0, boneWeight.boneIndex1, -1);
+                CountCandidate(candidateCounts, boneWeight.boneIndex3, boneWeight.weight3, boneWeight.boneIndex0, boneWeight.boneIndex1, boneWeight.boneIndex2);
+            }
+
+            for (int i = 0; i < candidateCounts.Length; ++i)
+            {
+                m_BoneVertexCandidates[i] = new int[candidateCounts[i]];
+            }
+
+            Array.Clear(candidateCounts, 0, candidateCounts.Length);
+
+            for (int i = 0; i < m_MeshBoneWeights.Length; ++i)
+            {
+                var boneWeight = m_MeshBoneWeights[i];
+
+                AddCandidate(candidateCounts, boneWeight.boneIndex0, boneWeight.weight0, i, -1, -1, -1);
+                AddCandidate(candidateCounts, boneWeight.boneIndex1, boneWeight.weight1, i, boneWeight.boneIndex0, -1, -1);
+                AddCandidate(candidateCounts, boneWeight.boneIndex2, boneWeight.weight2, i, boneWeight.boneIndex0, boneWeight.boneIndex1, -1);
+                AddCandidate(candidateCounts, boneWeight.boneIndex3, boneWeight.weight3, i, boneWeight.boneIndex0, boneWeight.boneIndex1, boneWeight.boneIndex2);
+            }
+        }
+
+        private void CountCandidate(int[] candidateCounts, int boneIndex, float weight, int duplicate0, int duplicate1, int duplicate2)
+        {
+            if (!IsValidCandidateBone(boneIndex, weight, duplicate0, duplicate1, duplicate2))
+            {
+                return;
+            }
+
+            ++candidateCounts[boneIndex];
+        }
+
+        private void AddCandidate(int[] candidateCounts, int boneIndex, float weight, int vertexIndex, int duplicate0, int duplicate1, int duplicate2)
+        {
+            if (!IsValidCandidateBone(boneIndex, weight, duplicate0, duplicate1, duplicate2))
+            {
+                return;
+            }
+
+            m_BoneVertexCandidates[boneIndex][candidateCounts[boneIndex]] = vertexIndex;
+            ++candidateCounts[boneIndex];
+        }
+
+        private bool IsValidCandidateBone(int boneIndex, float weight, int duplicate0, int duplicate1, int duplicate2)
+        {
+            return boneIndex >= 0 &&
+                   boneIndex < m_MeshBoneCount &&
+                   weight > 0.0f &&
+                   boneIndex != duplicate0 &&
+                   boneIndex != duplicate1 &&
+                   boneIndex != duplicate2;
         }
     }
 }
