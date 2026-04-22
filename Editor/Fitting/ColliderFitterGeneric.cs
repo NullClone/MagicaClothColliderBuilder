@@ -124,8 +124,16 @@ namespace MagicaClothColliderBuilder
         {
             var limbSettings = job.Property.LimbFitProperty;
             var limbAxis = childHint.normalized;
-            var jointDistance = Mathf.Max(childHint.magnitude, limbSettings.MinJointDistance);
-            bool centerToMeshCrossSection = IsHumanoidFingerBone(job.Animator, job.TargetBone.transform);
+            bool isFinger = IsHumanoidFingerBone(job.Animator, job.TargetBone.transform);
+            float rawJointDistance = childHint.magnitude;
+            var jointDistance = isFinger ? rawJointDistance : Mathf.Max(rawJointDistance, limbSettings.MinJointDistance);
+
+            if (jointDistance <= 1.0e-5f)
+            {
+                return false;
+            }
+
+            bool centerToMeshCrossSection = isFinger;
             FitMode fitMode = ResolveFitMode(job, boneRole);
             float radiusPercentile = limbSettings.GetRadiusPercentile(fitMode);
 
@@ -153,8 +161,15 @@ namespace MagicaClothColliderBuilder
             limbStartRadius *= limbSettings.RadiusScale;
             limbEndRadius *= limbSettings.RadiusScale;
 
-            float totalLength = jointDistance + limbStartRadius + limbEndRadius;
-            float centerY = (jointDistance * 0.5f) + ((limbStartRadius - limbEndRadius) * 0.5f);
+            if (isFinger)
+            {
+                float maxFingerRadius = Mathf.Max(0.0025f, jointDistance * 0.32f);
+                limbStartRadius = Mathf.Min(limbStartRadius, maxFingerRadius);
+                limbEndRadius = Mathf.Min(limbEndRadius, maxFingerRadius);
+            }
+
+            float totalLength = jointDistance;
+            float centerY = jointDistance * 0.5f;
 
             if (!limbSettings.AnchorStartSphereCenterToBone)
             {
