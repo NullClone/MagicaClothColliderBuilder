@@ -1,6 +1,7 @@
 using MagicaCloth2;
 using System;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 
 namespace MagicaClothColliderBuilder
@@ -10,6 +11,7 @@ namespace MagicaClothColliderBuilder
         // Constants
 
         public const string GeneratedColliderName = "MagicaClothCollider";
+        private const string UndoGroupName = "Generate Magica Cloth Colliders";
 
 
         // Fields
@@ -187,6 +189,14 @@ namespace MagicaClothColliderBuilder
                    collider.gameObject.name.StartsWith(GeneratedColliderName, StringComparison.Ordinal);
         }
 
+        private static string CreateGeneratedColliderName(Transform sourceBone, bool fallback)
+        {
+            string boneName = sourceBone != null ? sourceBone.name : "Unknown";
+            string suffix = fallback ? " (Fallback)" : string.Empty;
+
+            return $"{GeneratedColliderName}_{boneName}{suffix}";
+        }
+
         private void ReportProgress(float progress, string message)
         {
             m_ProgressReporter?.Invoke(Mathf.Clamp01(progress), message ?? string.Empty);
@@ -345,13 +355,16 @@ namespace MagicaClothColliderBuilder
 
         private static MagicaCapsuleCollider CreateColliderGameObject(ColliderGenerationJob job, CapsuleFitResult fitResult)
         {
-            var colliderGameObject = new GameObject(GeneratedColliderName);
-            colliderGameObject.transform.parent = job.TargetBone.transform;
+            var colliderGameObject = new GameObject(CreateGeneratedColliderName(job.TargetBone.transform, false));
+            Undo.RegisterCreatedObjectUndo(colliderGameObject, UndoGroupName);
+            Undo.SetTransformParent(colliderGameObject.transform, job.TargetBone.transform, UndoGroupName);
+            Undo.RecordObject(colliderGameObject.transform, UndoGroupName);
             colliderGameObject.transform.localPosition = Vector3.zero;
             colliderGameObject.transform.localRotation = fitResult.LocalRotation;
             colliderGameObject.transform.localScale = Vector3.one;
 
-            var capsuleCollider = colliderGameObject.AddComponent<MagicaCapsuleCollider>();
+            var capsuleCollider = Undo.AddComponent<MagicaCapsuleCollider>(colliderGameObject);
+            Undo.RecordObject(capsuleCollider, UndoGroupName);
             capsuleCollider.direction = fitResult.Direction;
             capsuleCollider.center = fitResult.Center;
             capsuleCollider.SetSize(fitResult.RadiusAtMin, fitResult.RadiusAtMax, fitResult.Length);
@@ -365,12 +378,15 @@ namespace MagicaClothColliderBuilder
         {
             Debug.LogWarning($"Could not determine mesh shape for bone '{boneTransform.name}'. Creating a fallback collider.");
 
-            var colliderGameObject = new GameObject($"{GeneratedColliderName} (Fallback)");
-            colliderGameObject.transform.parent = boneTransform;
+            var colliderGameObject = new GameObject(CreateGeneratedColliderName(boneTransform, true));
+            Undo.RegisterCreatedObjectUndo(colliderGameObject, UndoGroupName);
+            Undo.SetTransformParent(colliderGameObject.transform, boneTransform, UndoGroupName);
+            Undo.RecordObject(colliderGameObject.transform, UndoGroupName);
             colliderGameObject.transform.localPosition = Vector3.zero;
             colliderGameObject.transform.localRotation = Quaternion.identity;
             colliderGameObject.transform.localScale = Vector3.one;
-            var capsuleCollider = colliderGameObject.AddComponent<MagicaCapsuleCollider>();
+            var capsuleCollider = Undo.AddComponent<MagicaCapsuleCollider>(colliderGameObject);
+            Undo.RecordObject(capsuleCollider, UndoGroupName);
 
             if (boneTransform.childCount > 0)
             {

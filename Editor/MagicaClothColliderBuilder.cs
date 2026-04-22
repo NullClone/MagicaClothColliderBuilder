@@ -329,6 +329,10 @@ namespace MagicaClothColliderBuilder
 
             if (GUILayout.Button("Generate Colliders", GUILayout.Height(30f)))
             {
+                int undoGroup = Undo.GetCurrentGroup();
+
+                Undo.SetCurrentGroupName("Generate Magica Cloth Colliders");
+
                 if (ColliderGenerator.FindGeneratedColliders(m_TargetAvatarRoot).Count != 0)
                 {
                     if (EditorUtility.DisplayDialog(
@@ -337,7 +341,9 @@ namespace MagicaClothColliderBuilder
                         "Cleanup And Generate",
                         "Cancel"))
                     {
-                        CleanupExistingColliders();
+                        CleanupExistingColliders(false);
+
+                        Undo.SetCurrentGroupName("Generate Magica Cloth Colliders");
                     }
                     else return;
                 }
@@ -358,6 +364,8 @@ namespace MagicaClothColliderBuilder
                 finally
                 {
                     EditorUtility.ClearProgressBar();
+
+                    Undo.CollapseUndoOperations(undoGroup);
                 }
             }
 
@@ -365,7 +373,10 @@ namespace MagicaClothColliderBuilder
             {
                 if (GUILayout.Button("Select Colliders", GUILayout.Height(26f)))
                 {
-                    Selection.objects = m_GeneratedColliders.Select(c => c.gameObject).ToArray();
+                    Selection.objects = m_GeneratedColliders
+                        .Where(c => c != null && c.gameObject != null)
+                        .Select(c => c.gameObject)
+                        .ToArray();
                 }
             }
 
@@ -379,7 +390,7 @@ namespace MagicaClothColliderBuilder
             GUI.enabled = true;
         }
 
-        private void CleanupExistingColliders()
+        private void CleanupExistingColliders(bool collapseUndoGroup = true)
         {
             if (m_TargetAvatarRoot == null)
             {
@@ -388,18 +399,29 @@ namespace MagicaClothColliderBuilder
                 return;
             }
 
+            int undoGroup = Undo.GetCurrentGroup();
+
+            Undo.SetCurrentGroupName("Cleanup Magica Cloth Colliders");
+
             var colliders = ColliderGenerator.FindGeneratedColliders(m_TargetAvatarRoot);
 
             foreach (var collider in colliders)
             {
+                if (collider == null || collider.gameObject == null) continue;
+
                 if (Application.isEditor && !Application.isPlaying)
                 {
-                    Object.DestroyImmediate(collider.gameObject);
+                    Undo.DestroyObjectImmediate(collider.gameObject);
                 }
                 else
                 {
                     Object.Destroy(collider.gameObject);
                 }
+            }
+
+            if (collapseUndoGroup)
+            {
+                Undo.CollapseUndoOperations(undoGroup);
             }
         }
 
