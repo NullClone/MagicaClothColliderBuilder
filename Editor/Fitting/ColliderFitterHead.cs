@@ -101,6 +101,9 @@ namespace MagicaClothColliderBuilder
                 return false;
             }
 
+            Vector3 localUp = ResolveHeadLocalUp(headTransform);
+            Quaternion localRotation = Quaternion.FromToRotation(Vector3.up, localUp);
+            Quaternion inverseRotation = Quaternion.Inverse(localRotation);
             float minX = float.MaxValue;
             float minY = float.MaxValue;
             float minZ = float.MaxValue;
@@ -113,7 +116,7 @@ namespace MagicaClothColliderBuilder
 
             for (int i = 0; i < vertices.Length; ++i)
             {
-                Vector3 v = vertices[i];
+                Vector3 v = inverseRotation * vertices[i];
                 xValues.Add(v.x);
                 yValues.Add(v.y);
                 zValues.Add(v.z);
@@ -161,29 +164,14 @@ namespace MagicaClothColliderBuilder
             }
             else if (settings.UseFaceForwardOffsetWhenNotAnchored)
             {
-                Vector3 faceDir = headTransform.InverseTransformDirection(headTransform.root != null ? headTransform.root.forward : Vector3.forward);
-
-                if (faceDir.sqrMagnitude <= 1.0e-8f)
-                {
-                    faceDir = Vector3.forward;
-                }
-
-                faceDir.Normalize();
-
-                Vector3 localUp = headTransform.InverseTransformDirection(headTransform.root != null ? headTransform.root.up : Vector3.up);
-
-                if (localUp.sqrMagnitude <= 1.0e-8f)
-                {
-                    localUp = Vector3.up;
-                }
-
-                localUp.Normalize();
-                center += (faceDir * settings.ForwardOffset) + (localUp * settings.UpOffset);
+                Vector3 faceDir = inverseRotation * ResolveHeadLocalForward(headTransform);
+                Vector3 upDir = inverseRotation * localUp;
+                center += (faceDir.normalized * settings.ForwardOffset) + (upDir.normalized * settings.UpOffset);
             }
 
             fitResult = new FitResult
             {
-                LocalRotation = Quaternion.identity,
+                LocalRotation = localRotation,
                 Direction = MagicaCapsuleCollider.Direction.Y,
                 Center = center,
                 Length = length,
@@ -192,6 +180,42 @@ namespace MagicaClothColliderBuilder
                 ReverseDirection = false,
             };
             return true;
+        }
+
+        private static Vector3 ResolveHeadLocalUp(Transform headTransform)
+        {
+            if (headTransform == null)
+            {
+                return Vector3.up;
+            }
+
+            Vector3 worldUp = headTransform.root != null ? headTransform.root.up : Vector3.up;
+            Vector3 localUp = headTransform.InverseTransformDirection(worldUp);
+
+            if (localUp.sqrMagnitude <= 1.0e-8f)
+            {
+                localUp = Vector3.up;
+            }
+
+            return localUp.normalized;
+        }
+
+        private static Vector3 ResolveHeadLocalForward(Transform headTransform)
+        {
+            if (headTransform == null)
+            {
+                return Vector3.forward;
+            }
+
+            Vector3 worldForward = headTransform.root != null ? headTransform.root.forward : Vector3.forward;
+            Vector3 localForward = headTransform.InverseTransformDirection(worldForward);
+
+            if (localForward.sqrMagnitude <= 1.0e-8f)
+            {
+                localForward = Vector3.forward;
+            }
+
+            return localForward.normalized;
         }
 
         private static bool TryFitHeadBest(ColliderGenerationJob job, HeadFitProperty settings, Vector3 center, Vector3 offsetCenter, out FitResult fitResult)
