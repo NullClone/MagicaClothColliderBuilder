@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace MagicaClothColliderBuilder
 {
-    public static partial class ColliderCapsuleFitter
+    public static partial class ColliderFitter
     {
         internal static bool TryFitHead(ColliderGenerationJob job, out CapsuleFitResult fitResult)
         {
@@ -88,6 +88,7 @@ namespace MagicaClothColliderBuilder
 
             return TryFitHeadBest(job, settings, center, offsetCenter, out fitResult);
         }
+
 
         private static bool TryFitHeadFast(ColliderGenerationJob job, HeadFitProperty settings, Transform headTransform, FitMode fitMode, out CapsuleFitResult fitResult)
         {
@@ -193,7 +194,7 @@ namespace MagicaClothColliderBuilder
             return true;
         }
 
-        internal static bool TryFitHeadBest(ColliderGenerationJob job, HeadFitProperty settings, Vector3 center, Vector3 offsetCenter, out CapsuleFitResult fitResult)
+        private static bool TryFitHeadBest(ColliderGenerationJob job, HeadFitProperty settings, Vector3 center, Vector3 offsetCenter, out CapsuleFitResult fitResult)
         {
             fitResult = default;
 

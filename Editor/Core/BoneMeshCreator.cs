@@ -111,31 +111,19 @@ namespace MagicaClothColliderBuilder
 
             for (int boneIndex = 0; boneIndex < targetBones.Length; ++boneIndex)
             {
-                if (!targetBones[boneIndex] || boneIndex >= boneVertexCandidates.Length)
-                {
-                    continue;
-                }
+                if (!targetBones[boneIndex] || boneIndex >= boneVertexCandidates.Length) continue;
 
                 var candidates = boneVertexCandidates[boneIndex];
 
-                if (candidates == null)
-                {
-                    continue;
-                }
+                if (candidates == null) continue;
 
                 for (int i = 0; i < candidates.Length; ++i)
                 {
                     int vertexIndex = candidates[i];
 
-                    if (vertexIndex < 0 || vertexIndex >= m_BoneMeshCache.MeshVertexCount)
-                    {
-                        continue;
-                    }
+                    if (vertexIndex < 0 || vertexIndex >= m_BoneMeshCache.MeshVertexCount) continue;
 
-                    if (visitStamps[vertexIndex] == visitStamp)
-                    {
-                        continue;
-                    }
+                    if (visitStamps[vertexIndex] == visitStamp) continue;
 
                     visitStamps[vertexIndex] = visitStamp;
 
@@ -158,15 +146,7 @@ namespace MagicaClothColliderBuilder
             return passedVertexCount > 0;
         }
 
-        private bool PopulateTargetVerticesByFullScan(
-            bool[] targetVertex,
-            int[] boneIndices,
-            BoneWeight[] boneWeights,
-            bool[] processedVertices,
-            float[] boneWeightArray,
-            int[] boneIndexArray,
-            int influenceLimit,
-            float[] weightThresholds)
+        private bool PopulateTargetVerticesByFullScan(bool[] targetVertex, int[] boneIndices, BoneWeight[] boneWeights, bool[] processedVertices, float[] boneWeightArray, int[] boneIndexArray, int influenceLimit, float[] weightThresholds)
         {
             int passedVertexCount = 0;
 
@@ -190,16 +170,7 @@ namespace MagicaClothColliderBuilder
             return passedVertexCount > 0;
         }
 
-        private bool TryPopulateTargetVertex(
-            int vertexIndex,
-            bool[] targetVertex,
-            int[] boneIndices,
-            BoneWeight[] boneWeights,
-            bool[] processedVertices,
-            float[] boneWeightArray,
-            int[] boneIndexArray,
-            int influenceLimit,
-            float[] weightThresholds)
+        private bool TryPopulateTargetVertex(int vertexIndex, bool[] targetVertex, int[] boneIndices, BoneWeight[] boneWeights, bool[] processedVertices, float[] boneWeightArray, int[] boneIndexArray, int influenceLimit, float[] weightThresholds)
         {
             if (processedVertices[vertexIndex]) return false;
 

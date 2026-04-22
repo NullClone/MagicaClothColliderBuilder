@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MagicaClothColliderBuilder
 {
-    public static partial class ColliderCapsuleFitter
+    public static partial class ColliderFitter
     {
         private static bool TryParentHint(Transform boneTransform, out Vector3 directionHint)
         {

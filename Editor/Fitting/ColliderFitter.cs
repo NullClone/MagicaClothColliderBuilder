@@ -3,9 +3,9 @@ using UnityEngine;
 
 namespace MagicaClothColliderBuilder
 {
-    public static partial class ColliderCapsuleFitter
+    public static partial class ColliderFitter
     {
-        public static bool TryFitCapsule(ColliderGenerationJob job, out CapsuleFitResult fitResult)
+        public static bool TryFit(ColliderGenerationJob job, out CapsuleFitResult fitResult)
         {
             fitResult = new CapsuleFitResult
             {
@@ -28,9 +28,7 @@ namespace MagicaClothColliderBuilder
 
             var boneRole = DetectBoneFitRole(job.TargetBone.transform);
 
-            if (job.Property.GenerationProperty.IncludeFingers &&
-                IsHumanoidHandBone(job.Animator, job.TargetBone.transform) &&
-                TryFitPalm(job, ref fitResult))
+            if (job.Property.GenerationProperty.IncludeFingers && IsHumanoidHandBone(job.Animator, job.TargetBone.transform) && TryFitPalm(job, ref fitResult))
             {
                 return true;
             }
@@ -134,5 +132,16 @@ namespace MagicaClothColliderBuilder
 
             return BoneFitRole.Default;
         }
+    }
+
+    public struct CapsuleFitResult
+    {
+        public Quaternion LocalRotation;
+        public MagicaCapsuleCollider.Direction Direction;
+        public Vector3 Center;
+        public float Length;
+        public float RadiusAtMin;
+        public float RadiusAtMax;
+        public bool ReverseDirection;
     }
 }

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace MagicaClothColliderBuilder
 {
-    public static partial class ColliderCapsuleFitter
+    public static partial class ColliderFitter
     {
         internal static bool TryFitBody(ColliderGenerationJob job, BoneFitRole boneRole, out CapsuleFitResult fitResult)
         {

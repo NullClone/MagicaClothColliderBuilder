@@ -174,10 +174,7 @@ namespace MagicaClothColliderBuilder
             {
                 HumanBodyBones boneId = (HumanBodyBones)i;
 
-                if (!ShouldIncludeBone(boneId))
-                {
-                    continue;
-                }
+                if (!ShouldIncludeBone(boneId)) continue;
 
                 var boneTransform = m_Animator.GetBoneTransform(boneId);
 
@@ -256,7 +253,7 @@ namespace MagicaClothColliderBuilder
             {
                 var job = jobs[i];
 
-                if (!ColliderCapsuleFitter.TryFitCapsule(job, out var fitResult)) continue;
+                if (!ColliderFitter.TryFit(job, out var fitResult)) continue;
 
                 var collider = CreateColliderGameObject(job, fitResult);
 
@@ -322,7 +319,7 @@ namespace MagicaClothColliderBuilder
                 float radius = Mathf.Clamp(maxDistance * 0.18f, 0.01f, 0.08f);
                 float length = Mathf.Max(maxDistance, radius * 2.0f);
 
-                if (ColliderCapsuleFitter.DetectBoneFitRole(boneTransform) == BoneFitRole.UpperChest)
+                if (ColliderFitter.DetectBoneFitRole(boneTransform) == BoneFitRole.UpperChest)
                 {
                     radius *= 1.1f;
                 }
@@ -343,7 +340,7 @@ namespace MagicaClothColliderBuilder
                 float defaultRadius = 0.02f;
                 float defaultLength = 0.02f;
 
-                if (ColliderCapsuleFitter.DetectBoneFitRole(boneTransform) == BoneFitRole.UpperChest)
+                if (ColliderFitter.DetectBoneFitRole(boneTransform) == BoneFitRole.UpperChest)
                 {
                     defaultRadius = 0.03f;
                     defaultLength = 0.04f;
