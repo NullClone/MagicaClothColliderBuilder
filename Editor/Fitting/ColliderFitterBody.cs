@@ -6,7 +6,7 @@ namespace MagicaClothColliderBuilder
 {
     public static partial class ColliderFitter
     {
-        internal static bool TryFitBody(ColliderGenerationJob job, BoneFitRole boneRole, out CapsuleFitResult fitResult)
+        internal static bool TryFitBody(ColliderGenerationJob job, BoneFitRole boneRole, out FitResult fitResult)
         {
             fitResult = default;
 
@@ -98,7 +98,7 @@ namespace MagicaClothColliderBuilder
             radius = Mathf.Clamp(radius, bodySettings.MinRadius, maxRadius);
             Vector3 center = ResolveBendSafeCenter(rotated, length, radius, bodySettings);
 
-            fitResult = new CapsuleFitResult
+            fitResult = new FitResult
             {
                 LocalRotation = localRotation,
                 Direction = MagicaCapsuleCollider.Direction.Y,

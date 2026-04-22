@@ -6,7 +6,7 @@ namespace MagicaClothColliderBuilder
 {
     public static partial class ColliderFitter
     {
-        internal static bool TryFitHead(ColliderGenerationJob job, out CapsuleFitResult fitResult)
+        internal static bool TryFitHead(ColliderGenerationJob job, out FitResult fitResult)
         {
             fitResult = default;
 
@@ -90,7 +90,7 @@ namespace MagicaClothColliderBuilder
         }
 
 
-        private static bool TryFitHeadFast(ColliderGenerationJob job, HeadFitProperty settings, Transform headTransform, FitMode fitMode, out CapsuleFitResult fitResult)
+        private static bool TryFitHeadFast(ColliderGenerationJob job, HeadFitProperty settings, Transform headTransform, FitMode fitMode, out FitResult fitResult)
         {
             fitResult = default;
 
@@ -181,7 +181,7 @@ namespace MagicaClothColliderBuilder
                 center += (faceDir * settings.ForwardOffset) + (localUp * settings.UpOffset);
             }
 
-            fitResult = new CapsuleFitResult
+            fitResult = new FitResult
             {
                 LocalRotation = Quaternion.identity,
                 Direction = MagicaCapsuleCollider.Direction.Y,
@@ -194,7 +194,7 @@ namespace MagicaClothColliderBuilder
             return true;
         }
 
-        private static bool TryFitHeadBest(ColliderGenerationJob job, HeadFitProperty settings, Vector3 center, Vector3 offsetCenter, out CapsuleFitResult fitResult)
+        private static bool TryFitHeadBest(ColliderGenerationJob job, HeadFitProperty settings, Vector3 center, Vector3 offsetCenter, out FitResult fitResult)
         {
             fitResult = default;
 
@@ -307,7 +307,7 @@ namespace MagicaClothColliderBuilder
                                 {
                                     hasCandidate = true;
                                     bestScore = score;
-                                    fitResult = new CapsuleFitResult
+                                    fitResult = new FitResult
                                     {
                                         LocalRotation = Quaternion.identity,
                                         Direction = MagicaCapsuleCollider.Direction.Y,
@@ -328,7 +328,7 @@ namespace MagicaClothColliderBuilder
                                     {
                                         hasCandidate = true;
                                         bestScore = anchoredScore;
-                                        fitResult = new CapsuleFitResult
+                                        fitResult = new FitResult
                                         {
                                             LocalRotation = Quaternion.identity,
                                             Direction = MagicaCapsuleCollider.Direction.Y,

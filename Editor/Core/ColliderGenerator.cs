@@ -266,7 +266,7 @@ namespace MagicaClothColliderBuilder
             return createdColliders;
         }
 
-        private static MagicaCapsuleCollider CreateColliderGameObject(ColliderGenerationJob job, CapsuleFitResult fitResult)
+        private static MagicaCapsuleCollider CreateColliderGameObject(ColliderGenerationJob job, FitResult fitResult)
         {
             var colliderGameObject = new GameObject(CreateGeneratedColliderName(job.TargetBone.transform, false));
             Undo.RegisterCreatedObjectUndo(colliderGameObject, UndoGroupName);

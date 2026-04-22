@@ -6,7 +6,7 @@ namespace MagicaClothColliderBuilder
 {
     public static partial class ColliderFitter
     {
-        internal static bool TryFitPalm(ColliderGenerationJob job, ref CapsuleFitResult fitResult)
+        internal static bool TryFitPalm(ColliderGenerationJob job, ref FitResult fitResult)
         {
             if (job == null ||
                 job.TargetBone == null ||
@@ -120,7 +120,7 @@ namespace MagicaClothColliderBuilder
             return true;
         }
 
-        internal static bool TryFitLimb(ColliderGenerationJob job, Vector3 childHint, BoneFitRole boneRole, ref CapsuleFitResult fitResult)
+        internal static bool TryFitLimb(ColliderGenerationJob job, Vector3 childHint, BoneFitRole boneRole, ref FitResult fitResult)
         {
             var limbSettings = job.Property.LimbFitProperty;
             var limbAxis = childHint.normalized;
@@ -172,7 +172,7 @@ namespace MagicaClothColliderBuilder
             return true;
         }
 
-        internal static bool TryFitAuto(ColliderGenerationJob job, Vector3[] vertices, BoneFitRole boneRole, bool hasChildHint, Vector3 childHint, bool hasParentHint, Vector3 parentHint, out CapsuleFitResult fitResult)
+        internal static bool TryFitAuto(ColliderGenerationJob job, Vector3[] vertices, BoneFitRole boneRole, bool hasChildHint, Vector3 childHint, bool hasParentHint, Vector3 parentHint, out FitResult fitResult)
         {
             fitResult = default;
 
@@ -259,7 +259,7 @@ namespace MagicaClothColliderBuilder
                 return false;
             }
 
-            fitResult = new CapsuleFitResult
+            fitResult = new FitResult
             {
                 LocalRotation = bestRotation,
                 Direction = MagicaCapsuleCollider.Direction.Y,

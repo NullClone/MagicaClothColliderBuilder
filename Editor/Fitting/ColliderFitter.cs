@@ -5,9 +5,9 @@ namespace MagicaClothColliderBuilder
 {
     public static partial class ColliderFitter
     {
-        public static bool TryFit(ColliderGenerationJob job, out CapsuleFitResult fitResult)
+        public static bool TryFit(ColliderGenerationJob job, out FitResult fitResult)
         {
-            fitResult = new CapsuleFitResult
+            fitResult = new FitResult
             {
                 LocalRotation = Quaternion.identity,
                 Direction = MagicaCapsuleCollider.Direction.Y,
@@ -134,7 +134,7 @@ namespace MagicaClothColliderBuilder
         }
     }
 
-    public struct CapsuleFitResult
+    public struct FitResult
     {
         public Quaternion LocalRotation;
         public MagicaCapsuleCollider.Direction Direction;
