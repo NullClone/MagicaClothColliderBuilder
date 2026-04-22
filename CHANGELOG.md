@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+
+## [1.3.0] - 2026-04-22
+
+### 手のコライダー生成を強化
+
+### Added
+- 手のひらのコライダーを生成するように
+- Undo機能を実装
+
+### Changed
+- 頂点情報を格納することでパフォーマンスが大幅に向上
+- プログレスバーを改良
+- Fitting周りを改修
+
 ## [1.2.0] - 2026-04-22
 
 ### Added
