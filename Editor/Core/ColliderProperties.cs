@@ -25,7 +25,7 @@ namespace MagicaClothColliderBuilder
         public FitMode BodyFitMode = FitMode.Balanced;
         public FitMode HeadFitMode = FitMode.Balanced;
         public bool IncludeHips = false;
-        public bool IncludeFingers = false;
+        public bool IncludeFingers = true;
         public bool IncludeShoulders = false;
         public bool IncludeToes = true;
         public bool IncludeUpperChest = true;
