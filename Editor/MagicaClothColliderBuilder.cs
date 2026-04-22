@@ -10,9 +10,10 @@ namespace MagicaClothColliderBuilder
     {
         private enum SettingsTab
         {
-            Overview,
+            Generic,
             Limbs,
             Body,
+            Head,
             Advanced,
         }
 
@@ -21,7 +22,7 @@ namespace MagicaClothColliderBuilder
 
         private Vector2 m_ScrollPosition;
         private GameObject m_TargetAvatarRoot;
-        private SettingsTab m_SelectedTab = SettingsTab.Overview;
+        private SettingsTab m_SelectedTab = SettingsTab.Generic;
         private SABoneColliderProperty m_Settings = new();
         private List<MagicaCapsuleCollider> m_GeneratedColliders = new();
         private bool m_UseCustomSkinnedMeshes;
@@ -43,7 +44,7 @@ namespace MagicaClothColliderBuilder
         {
             EditorGUILayout.Space();
 
-            m_SelectedTab = (SettingsTab)GUILayout.Toolbar((int)m_SelectedTab, new[] { "Overview", "Limbs", "Body", "Advanced" }, GUILayout.Height(28f));
+            m_SelectedTab = (SettingsTab)GUILayout.Toolbar((int)m_SelectedTab, new[] { "Generic", "Limbs", "Body", "Head", "Advanced" }, GUILayout.Height(28f));
 
             EditorGUILayout.Space();
 
@@ -51,14 +52,17 @@ namespace MagicaClothColliderBuilder
 
             switch (m_SelectedTab)
             {
-                case SettingsTab.Overview:
-                    DrawOverviewTab();
+                case SettingsTab.Generic:
+                    DrawGenericTab();
                     break;
                 case SettingsTab.Limbs:
                     DrawLimbTab();
                     break;
                 case SettingsTab.Body:
                     DrawBodyTab();
+                    break;
+                case SettingsTab.Head:
+                    DrawHeadTab();
                     break;
                 case SettingsTab.Advanced:
                     DrawAdvancedTab();
@@ -71,7 +75,7 @@ namespace MagicaClothColliderBuilder
             EditorGUILayout.EndScrollView();
         }
 
-        private void DrawOverviewTab()
+        private void DrawGenericTab()
         {
             DrawCard("Target", () =>
             {
@@ -132,24 +136,7 @@ namespace MagicaClothColliderBuilder
                 }
             });
 
-            DrawCard("Generation", () =>
-            {
-                GenerationProperty generation = m_Settings.GenerationProperty;
-                generation.IncludeHips = EditorGUILayout.Toggle("Include Hips", generation.IncludeHips);
-                generation.IncludeShoulders = EditorGUILayout.Toggle("Include Shoulders", generation.IncludeShoulders);
-                generation.IncludeFingers = EditorGUILayout.Toggle("Include Fingers", generation.IncludeFingers);
-                generation.IncludeToes = EditorGUILayout.Toggle("Include Toes", generation.IncludeToes);
-                generation.IncludeUpperChest = EditorGUILayout.Toggle("Include UpperChest", generation.IncludeUpperChest);
-
-                if (GUILayout.Button("Reset All Settings"))
-                {
-                    m_Settings = new SABoneColliderProperty();
-                    m_UseCustomSkinnedMeshes = false;
-                    m_CustomSkinnedMeshes.Clear();
-                }
-            });
-
-            DrawCard("Fit Modes", () =>
+            DrawCard("Fit Mode", () =>
             {
                 GenerationProperty generation = m_Settings.GenerationProperty;
                 generation.ArmFitMode = (FitMode)EditorGUILayout.EnumPopup("Arms", generation.ArmFitMode);
@@ -158,12 +145,121 @@ namespace MagicaClothColliderBuilder
                 generation.ToeFitMode = (FitMode)EditorGUILayout.EnumPopup("Toes", generation.ToeFitMode);
                 generation.BodyFitMode = (FitMode)EditorGUILayout.EnumPopup("Body", generation.BodyFitMode);
                 generation.HeadFitMode = (FitMode)EditorGUILayout.EnumPopup("Head / Neck", generation.HeadFitMode);
+
+                EditorGUILayout.Space();
+                EditorGUILayout.LabelField("Include", EditorStyles.boldLabel);
+
+                generation.IncludeHips = EditorGUILayout.Toggle("Include Hips", generation.IncludeHips);
+                generation.IncludeShoulders = EditorGUILayout.Toggle("Include Shoulders", generation.IncludeShoulders);
+                generation.IncludeFingers = EditorGUILayout.Toggle("Include Fingers", generation.IncludeFingers);
+                generation.IncludeToes = EditorGUILayout.Toggle("Include Toes", generation.IncludeToes);
+                generation.IncludeUpperChest = EditorGUILayout.Toggle("Include UpperChest", generation.IncludeUpperChest);
+
+                EditorGUILayout.Space();
+
+                if (GUILayout.Button("Reset All Settings"))
+                {
+                    m_Settings = new SABoneColliderProperty();
+                    m_UseCustomSkinnedMeshes = false;
+                    m_CustomSkinnedMeshes.Clear();
+                }
             });
         }
 
-        private void DrawSplitTab()
+        private void DrawLimbTab()
         {
-            DrawCard("Weight Extraction", () =>
+            DrawCard("Fitting", () =>
+            {
+                LimbFitProperty limb = m_Settings.LimbFitProperty;
+                limb.RadiusScale = EditorGUILayout.Slider("Radius Scale", limb.RadiusScale, 0.5f, 1.5f);
+                limb.MinJointDistance = EditorGUILayout.Slider("Min Joint Distance", limb.MinJointDistance, 0.005f, 0.1f);
+                limb.AnchorStartSphereCenterToBone = EditorGUILayout.Toggle("Anchor Start Sphere Center To Bone", limb.AnchorStartSphereCenterToBone);
+            });
+
+            DrawCard("Fit Mode", () =>
+            {
+                LimbFitProperty limb = m_Settings.LimbFitProperty;
+                limb.InnerRadiusPercentile = EditorGUILayout.Slider("Inner Radius", limb.InnerRadiusPercentile, 25f, 65f);
+                limb.BalancedRadiusPercentile = EditorGUILayout.Slider("Balanced Radius", limb.BalancedRadiusPercentile, 45f, 80f);
+                limb.OuterRadiusPercentile = EditorGUILayout.Slider("Outer Radius", limb.OuterRadiusPercentile, 60f, 95f);
+            });
+
+            DrawCard("Advanced", () =>
+            {
+                LimbFitProperty limb = m_Settings.LimbFitProperty;
+                limb.ForceFixedAxisByHumanoid = EditorGUILayout.Toggle("Use Humanoid Axes", limb.ForceFixedAxisByHumanoid);
+                limb.LeakMarginScale = EditorGUILayout.Slider("Leak Margin Scale", limb.LeakMarginScale, 0.01f, 0.2f);
+                limb.LeakMarginMin = EditorGUILayout.Slider("Leak Margin Min", limb.LeakMarginMin, 0.001f, 0.02f);
+                limb.LeakMarginMax = EditorGUILayout.Slider("Leak Margin Max", limb.LeakMarginMax, limb.LeakMarginMin, 0.03f);
+            });
+        }
+
+        private void DrawBodyTab()
+        {
+            DrawCard("Body", () =>
+            {
+                BodyFitProperty body = m_Settings.BodyFitProperty;
+                body.HorizontalAxis = (BodyHorizontalAxis)EditorGUILayout.EnumPopup("Horizontal Axis", body.HorizontalAxis);
+                body.HipsMaxLength = EditorGUILayout.Slider("Hips Max Length", body.HipsMaxLength, body.MinLength, 0.5f);
+                body.RadiusPercentile = EditorGUILayout.Slider("Radius Bias", body.RadiusPercentile, 40f, 95f);
+                body.MinLength = EditorGUILayout.Slider("Min Length", body.MinLength, 0.01f, 0.2f);
+                body.MinRadius = EditorGUILayout.Slider("Min Radius", body.MinRadius, 0.001f, 0.05f);
+                body.BendSafeLengthScale = EditorGUILayout.Slider("Bend Safe Length", body.BendSafeLengthScale, 0.7f, 2.2f);
+                body.BendSafeRadiusScale = EditorGUILayout.Slider("Bend Safe Radius", body.BendSafeRadiusScale, 0.55f, 1.0f);
+            });
+
+            DrawCard("Body Advanced", () =>
+            {
+                BodyFitProperty body = m_Settings.BodyFitProperty;
+                GenerationProperty generation = m_Settings.GenerationProperty;
+                generation.DefaultFitMode = (FitMode)EditorGUILayout.EnumPopup("Fallback Fit Mode", generation.DefaultFitMode);
+                body.ProjectAxisToBodyUpPlane = EditorGUILayout.Toggle("Project Axis To Body-Up Plane", body.ProjectAxisToBodyUpPlane);
+                body.HipsProjectAxisToSpinePlane = EditorGUILayout.Toggle("Hips Project Axis To Spine Plane", body.HipsProjectAxisToSpinePlane);
+                body.HipsMaxLengthBySpineDistance = EditorGUILayout.Slider("Hips Max Length / Spine Distance", body.HipsMaxLengthBySpineDistance, 0.5f, 4.0f);
+                body.MaxRadiusByLengthRatio = EditorGUILayout.Slider("Max Radius / Length", body.MaxRadiusByLengthRatio, 0.2f, 1.0f);
+                body.BendSafeJointMargin = EditorGUILayout.Slider("Bend Safe Joint Margin", body.BendSafeJointMargin, 0f, 0.05f);
+                body.BendSafeCenterLimit = EditorGUILayout.Slider("Bend Safe Center Limit", body.BendSafeCenterLimit, 0f, 0.08f);
+
+                EditorGUILayout.Space();
+                EditorGUILayout.LabelField("Role Tuning", EditorStyles.boldLabel);
+
+                body.HipsLengthPercentile = EditorGUILayout.Slider("Hips Length", body.HipsLengthPercentile, 50f, 99f);
+                body.SpineLengthPercentile = EditorGUILayout.Slider("Spine Length", body.SpineLengthPercentile, 50f, 99f);
+                body.ChestLengthPercentile = EditorGUILayout.Slider("Chest Length", body.ChestLengthPercentile, 50f, 99f);
+                body.UpperChestLengthPercentile = EditorGUILayout.Slider("Upper Chest Length", body.UpperChestLengthPercentile, 50f, 99f);
+                body.HipsRadiusScale = EditorGUILayout.Slider("Hips Radius", body.HipsRadiusScale, 0.5f, 1.5f);
+                body.SpineRadiusScale = EditorGUILayout.Slider("Spine Radius", body.SpineRadiusScale, 0.5f, 1.5f);
+                body.ChestRadiusScale = EditorGUILayout.Slider("Chest Radius", body.ChestRadiusScale, 0.5f, 1.5f);
+                body.UpperChestRadiusScale = EditorGUILayout.Slider("Upper Chest Radius", body.UpperChestRadiusScale, 0.5f, 1.5f);
+            });
+        }
+
+        private void DrawHeadTab()
+        {
+            DrawCard("Head", () =>
+            {
+                HeadFitProperty head = m_Settings.HeadFitProperty;
+                head.FitMethod = (HeadFitMethod)EditorGUILayout.EnumPopup("Fit Method", head.FitMethod);
+                head.RadiusScale = EditorGUILayout.Slider("Radius Scale", head.RadiusScale, 0.5f, 1.5f);
+                head.MinRadius = EditorGUILayout.Slider("Min Radius", head.MinRadius, 0.01f, 0.3f);
+                head.MaxRadius = EditorGUILayout.Slider("Max Radius", head.MaxRadius, head.MinRadius, 0.5f);
+                head.AnchorOuterStartToHeadTransform = EditorGUILayout.Toggle("Anchor Outer Start To Head Transform", head.AnchorOuterStartToHeadTransform);
+            });
+
+            DrawCard("Head Advanced", () =>
+            {
+                HeadFitProperty head = m_Settings.HeadFitProperty;
+                head.RadiusPercentile = EditorGUILayout.Slider("Radius Percentile", head.RadiusPercentile, 40f, 95f);
+                head.UseFaceForwardOffsetWhenNotAnchored = EditorGUILayout.Toggle("Use Face Offsets When Not Anchored", head.UseFaceForwardOffsetWhenNotAnchored);
+                head.LengthRatio = EditorGUILayout.Slider("Length Ratio (Roundness)", head.LengthRatio, 0.0f, 0.8f);
+                head.ForwardOffset = EditorGUILayout.Slider("Forward Offset", head.ForwardOffset, -0.05f, 0.08f);
+                head.UpOffset = EditorGUILayout.Slider("Up Offset", head.UpOffset, -0.05f, 0.08f);
+            });
+        }
+
+        private void DrawAdvancedTab()
+        {
+            DrawCard("Weight", () =>
             {
                 SplitProperty split = m_Settings.SplitProperty;
                 split.BoneWeightType = (BoneWeightType)EditorGUILayout.EnumPopup("Bone Weight Type", split.BoneWeightType);
@@ -177,54 +273,7 @@ namespace MagicaClothColliderBuilder
                     split.BoneWeight4 = EditorGUILayout.IntSlider("Bone Weight 4", split.BoneWeight4, 0, 100);
                 }
             });
-        }
 
-        private void DrawLimbTab()
-        {
-            DrawCard("Limb Fitting", () =>
-            {
-                LimbFitProperty limb = m_Settings.LimbFitProperty;
-                limb.RadiusScale = EditorGUILayout.Slider("Radius Scale", limb.RadiusScale, 0.5f, 1.5f);
-                limb.MinJointDistance = EditorGUILayout.Slider("Min Joint Distance", limb.MinJointDistance, 0.005f, 0.1f);
-                limb.AnchorStartSphereCenterToBone = EditorGUILayout.Toggle("Anchor Start Sphere Center To Bone", limb.AnchorStartSphereCenterToBone);
-            });
-
-            DrawCard("Fit Mode Radius", () =>
-            {
-                LimbFitProperty limb = m_Settings.LimbFitProperty;
-                limb.InnerRadiusPercentile = EditorGUILayout.Slider("Inner Radius", limb.InnerRadiusPercentile, 25f, 65f);
-                limb.BalancedRadiusPercentile = EditorGUILayout.Slider("Balanced Radius", limb.BalancedRadiusPercentile, 45f, 80f);
-                limb.OuterRadiusPercentile = EditorGUILayout.Slider("Outer Radius", limb.OuterRadiusPercentile, 60f, 95f);
-            });
-        }
-
-        private void DrawBodyTab()
-        {
-            DrawCard("Body Orientation", () =>
-            {
-                BodyFitProperty body = m_Settings.BodyFitProperty;
-                body.HorizontalAxis = (BodyHorizontalAxis)EditorGUILayout.EnumPopup("Horizontal Axis", body.HorizontalAxis);
-                body.HipsMaxLength = EditorGUILayout.Slider("Hips Max Length", body.HipsMaxLength, body.MinLength, 0.5f);
-                body.RadiusPercentile = EditorGUILayout.Slider("Radius Bias", body.RadiusPercentile, 40f, 95f);
-                body.MinLength = EditorGUILayout.Slider("Min Length", body.MinLength, 0.01f, 0.2f);
-                body.MinRadius = EditorGUILayout.Slider("Min Radius", body.MinRadius, 0.001f, 0.05f);
-                body.BendSafeLengthScale = EditorGUILayout.Slider("Bend Safe Length", body.BendSafeLengthScale, 0.7f, 2.2f);
-                body.BendSafeRadiusScale = EditorGUILayout.Slider("Bend Safe Radius", body.BendSafeRadiusScale, 0.55f, 1.0f);
-            });
-
-            DrawCard("Head", () =>
-            {
-                HeadFitProperty head = m_Settings.HeadFitProperty;
-                head.FitMethod = (HeadFitMethod)EditorGUILayout.EnumPopup("Fit Method", head.FitMethod);
-                head.RadiusScale = EditorGUILayout.Slider("Radius Scale", head.RadiusScale, 0.5f, 1.5f);
-                head.MinRadius = EditorGUILayout.Slider("Min Radius", head.MinRadius, 0.01f, 0.3f);
-                head.MaxRadius = EditorGUILayout.Slider("Max Radius", head.MaxRadius, head.MinRadius, 0.5f);
-                head.AnchorOuterStartToHeadTransform = EditorGUILayout.Toggle("Anchor Outer Start To Head Transform", head.AnchorOuterStartToHeadTransform);
-            });
-        }
-
-        private void DrawGenericTab()
-        {
             DrawCard("Generic Percentiles", () =>
             {
                 GenericFitProperty generic = m_Settings.GenericFitProperty;
@@ -272,59 +321,6 @@ namespace MagicaClothColliderBuilder
                 generic.MaxRadiusByBoneRatio = EditorGUILayout.Slider("Max Radius / Bone", generic.MaxRadiusByBoneRatio, 0.1f, 1.5f);
                 generic.MaxRadiusByLengthRatio = EditorGUILayout.Slider("Max Radius / Length", generic.MaxRadiusByLengthRatio, 0.1f, 1.5f);
             });
-        }
-
-        private void DrawAdvancedTab()
-        {
-            DrawSplitTab();
-
-            DrawCard("Limb Advanced", () =>
-            {
-                LimbFitProperty limb = m_Settings.LimbFitProperty;
-                limb.ForceFixedAxisByHumanoid = EditorGUILayout.Toggle("Use Humanoid Axes", limb.ForceFixedAxisByHumanoid);
-                limb.LeakMarginScale = EditorGUILayout.Slider("Leak Margin Scale", limb.LeakMarginScale, 0.01f, 0.2f);
-                limb.LeakMarginMin = EditorGUILayout.Slider("Leak Margin Min", limb.LeakMarginMin, 0.001f, 0.02f);
-                limb.LeakMarginMax = EditorGUILayout.Slider("Leak Margin Max", limb.LeakMarginMax, limb.LeakMarginMin, 0.03f);
-            });
-
-            DrawCard("Body Advanced", () =>
-            {
-                BodyFitProperty body = m_Settings.BodyFitProperty;
-                GenerationProperty generation = m_Settings.GenerationProperty;
-                generation.DefaultFitMode = (FitMode)EditorGUILayout.EnumPopup("Fallback Fit Mode", generation.DefaultFitMode);
-                EditorGUILayout.Space();
-                body.ProjectAxisToBodyUpPlane = EditorGUILayout.Toggle("Project Axis To Body-Up Plane", body.ProjectAxisToBodyUpPlane);
-                body.HipsProjectAxisToSpinePlane = EditorGUILayout.Toggle("Hips Project Axis To Spine Plane", body.HipsProjectAxisToSpinePlane);
-                body.HipsMaxLengthBySpineDistance = EditorGUILayout.Slider("Hips Max Length / Spine Distance", body.HipsMaxLengthBySpineDistance, 0.5f, 4.0f);
-                body.MaxRadiusByLengthRatio = EditorGUILayout.Slider("Max Radius / Length", body.MaxRadiusByLengthRatio, 0.2f, 1.0f);
-                body.BendSafeJointMargin = EditorGUILayout.Slider("Bend Safe Joint Margin", body.BendSafeJointMargin, 0f, 0.05f);
-                body.BendSafeCenterLimit = EditorGUILayout.Slider("Bend Safe Center Limit", body.BendSafeCenterLimit, 0f, 0.08f);
-            });
-
-            DrawCard("Body Role Tuning", () =>
-            {
-                BodyFitProperty body = m_Settings.BodyFitProperty;
-                body.HipsLengthPercentile = EditorGUILayout.Slider("Hips Length", body.HipsLengthPercentile, 50f, 99f);
-                body.SpineLengthPercentile = EditorGUILayout.Slider("Spine Length", body.SpineLengthPercentile, 50f, 99f);
-                body.ChestLengthPercentile = EditorGUILayout.Slider("Chest Length", body.ChestLengthPercentile, 50f, 99f);
-                body.UpperChestLengthPercentile = EditorGUILayout.Slider("Upper Chest Length", body.UpperChestLengthPercentile, 50f, 99f);
-                body.HipsRadiusScale = EditorGUILayout.Slider("Hips Radius", body.HipsRadiusScale, 0.5f, 1.5f);
-                body.SpineRadiusScale = EditorGUILayout.Slider("Spine Radius", body.SpineRadiusScale, 0.5f, 1.5f);
-                body.ChestRadiusScale = EditorGUILayout.Slider("Chest Radius", body.ChestRadiusScale, 0.5f, 1.5f);
-                body.UpperChestRadiusScale = EditorGUILayout.Slider("Upper Chest Radius", body.UpperChestRadiusScale, 0.5f, 1.5f);
-            });
-
-            DrawCard("Head Advanced", () =>
-            {
-                HeadFitProperty head = m_Settings.HeadFitProperty;
-                head.RadiusPercentile = EditorGUILayout.Slider("Radius Percentile", head.RadiusPercentile, 40f, 95f);
-                head.UseFaceForwardOffsetWhenNotAnchored = EditorGUILayout.Toggle("Use Face Offsets When Not Anchored", head.UseFaceForwardOffsetWhenNotAnchored);
-                head.LengthRatio = EditorGUILayout.Slider("Length Ratio (Roundness)", head.LengthRatio, 0.0f, 0.8f);
-                head.ForwardOffset = EditorGUILayout.Slider("Forward Offset", head.ForwardOffset, -0.05f, 0.08f);
-                head.UpOffset = EditorGUILayout.Slider("Up Offset", head.UpOffset, -0.05f, 0.08f);
-            });
-
-            DrawGenericTab();
         }
 
         private void DrawActionSection()
@@ -412,7 +408,6 @@ namespace MagicaClothColliderBuilder
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
                 EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
-                EditorGUILayout.Space();
 
                 drawContent?.Invoke();
             }
