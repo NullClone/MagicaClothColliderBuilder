@@ -43,6 +43,13 @@ namespace MagicaClothColliderBuilder
                 return true;
             }
 
+            if (IsHumanoidFingerBone(job.Animator, job.TargetBone.transform) &&
+                hasHumanoidLimbHint &&
+                TryFitFinger(job, humanoidLimbHint, boneRole, ref fitResult))
+            {
+                return true;
+            }
+
             if (job.Property.LimbFitProperty.ForceFixedAxisByHumanoid && hasHumanoidLimbHint && TryFitLimb(job, humanoidLimbHint, boneRole, ref fitResult))
             {
                 return true;

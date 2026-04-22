@@ -124,16 +124,13 @@ namespace MagicaClothColliderBuilder
         {
             var limbSettings = job.Property.LimbFitProperty;
             var limbAxis = childHint.normalized;
-            bool isFinger = IsHumanoidFingerBone(job.Animator, job.TargetBone.transform);
-            float rawJointDistance = childHint.magnitude;
-            var jointDistance = isFinger ? rawJointDistance : Mathf.Max(rawJointDistance, limbSettings.MinJointDistance);
+            var jointDistance = Mathf.Max(childHint.magnitude, limbSettings.MinJointDistance);
 
             if (jointDistance <= 1.0e-5f)
             {
                 return false;
             }
 
-            bool centerToMeshCrossSection = isFinger;
             FitMode fitMode = ResolveFitMode(job, boneRole);
             float radiusPercentile = limbSettings.GetRadiusPercentile(fitMode);
 
@@ -146,7 +143,7 @@ namespace MagicaClothColliderBuilder
                 jointDistance,
                 boneRole,
                 true,
-                centerToMeshCrossSection,
+                false,
                 fitMode,
                 job.Property,
                 out Vector3 limbCenter,
@@ -161,15 +158,8 @@ namespace MagicaClothColliderBuilder
             limbStartRadius *= limbSettings.RadiusScale;
             limbEndRadius *= limbSettings.RadiusScale;
 
-            if (isFinger)
-            {
-                float maxFingerRadius = Mathf.Max(0.0025f, jointDistance * 0.32f);
-                limbStartRadius = Mathf.Min(limbStartRadius, maxFingerRadius);
-                limbEndRadius = Mathf.Min(limbEndRadius, maxFingerRadius);
-            }
-
-            float totalLength = jointDistance;
-            float centerY = jointDistance * 0.5f;
+            float totalLength = jointDistance + limbStartRadius + limbEndRadius;
+            float centerY = (jointDistance * 0.5f) + ((limbStartRadius - limbEndRadius) * 0.5f);
 
             if (!limbSettings.AnchorStartSphereCenterToBone)
             {
@@ -182,6 +172,58 @@ namespace MagicaClothColliderBuilder
             fitResult.Length = totalLength;
             fitResult.RadiusAtMin = limbStartRadius;
             fitResult.RadiusAtMax = limbEndRadius;
+            fitResult.ReverseDirection = false;
+
+            return true;
+        }
+
+        internal static bool TryFitFinger(ColliderGenerationJob job, Vector3 childHint, BoneFitRole boneRole, ref FitResult fitResult)
+        {
+            var limbSettings = job.Property.LimbFitProperty;
+            var fingerAxis = childHint.normalized;
+            float jointDistance = childHint.magnitude;
+
+            if (jointDistance <= 1.0e-5f)
+            {
+                return false;
+            }
+
+            FitMode fitMode = ResolveFitMode(job, boneRole);
+            float radiusPercentile = limbSettings.GetRadiusPercentile(fitMode);
+            var fingerRotation = Quaternion.FromToRotation(Vector3.up, fingerAxis);
+
+            if (!TryFitOnY(
+                job.Vertices,
+                Quaternion.Inverse(fingerRotation),
+                radiusPercentile,
+                jointDistance,
+                boneRole,
+                true,
+                true,
+                fitMode,
+                job.Property,
+                out Vector3 fingerCenter,
+                out float _,
+                out float fingerStartRadius,
+                out float fingerEndRadius,
+                out float _))
+            {
+                return false;
+            }
+
+            fingerStartRadius *= limbSettings.RadiusScale;
+            fingerEndRadius *= limbSettings.RadiusScale;
+
+            float maxFingerRadius = Mathf.Max(0.0025f, jointDistance * 0.32f);
+            fingerStartRadius = Mathf.Min(fingerStartRadius, maxFingerRadius);
+            fingerEndRadius = Mathf.Min(fingerEndRadius, maxFingerRadius);
+
+            fitResult.LocalRotation = fingerRotation;
+            fitResult.Direction = MagicaCapsuleCollider.Direction.Y;
+            fitResult.Center = new Vector3(fingerCenter.x, jointDistance * 0.5f, fingerCenter.z);
+            fitResult.Length = jointDistance;
+            fitResult.RadiusAtMin = fingerStartRadius;
+            fitResult.RadiusAtMax = fingerEndRadius;
             fitResult.ReverseDirection = false;
 
             return true;
