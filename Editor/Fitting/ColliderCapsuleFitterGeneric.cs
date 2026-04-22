@@ -6,6 +6,120 @@ namespace MagicaClothColliderBuilder
 {
     public static partial class ColliderCapsuleFitter
     {
+        internal static bool TryFitPalm(ColliderGenerationJob job, ref CapsuleFitResult fitResult)
+        {
+            if (job == null ||
+                job.TargetBone == null ||
+                job.Property == null ||
+                job.Vertices == null ||
+                job.Vertices.Length < 4 ||
+                !TryPalmHint(job.Animator, job.TargetBone.transform, out Vector3 palmAxis, out float palmLength))
+            {
+                return false;
+            }
+
+            palmLength = Mathf.Max(palmLength, job.Property.LimbFitProperty.MinJointDistance);
+            Vector3 axis = palmAxis.normalized;
+            Quaternion palmRotation = Quaternion.FromToRotation(Vector3.up, axis);
+            Quaternion inverseRotation = Quaternion.Inverse(palmRotation);
+            var rotated = new Vector3[job.Vertices.Length];
+            var palmX = new List<float>();
+            var palmZ = new List<float>();
+            float minY = -palmLength * 0.10f;
+            float maxY = palmLength * 0.82f;
+            float sampleMinY = -palmLength * 0.18f;
+            float sampleMaxY = palmLength * 0.95f;
+
+            for (int i = 0; i < job.Vertices.Length; ++i)
+            {
+                Vector3 rv = inverseRotation * job.Vertices[i];
+                rotated[i] = rv;
+
+                if (rv.y < sampleMinY || rv.y > sampleMaxY)
+                {
+                    continue;
+                }
+
+                palmX.Add(rv.x);
+                palmZ.Add(rv.z);
+            }
+
+            if (palmX.Count == 0)
+            {
+                return false;
+            }
+
+            float centerX = Percentile(palmX, 50.0f);
+            float centerZ = Percentile(palmZ, 50.0f);
+            float centerY = (minY + maxY) * 0.5f;
+            float length = Mathf.Max(job.Property.GenericFitProperty.MinLength, maxY - minY);
+            float endWindow = Mathf.Max(length * 0.30f, 0.004f);
+            var allRadii = new List<float>();
+            var wristRadii = new List<float>();
+            var knuckleRadii = new List<float>();
+
+            for (int i = 0; i < rotated.Length; ++i)
+            {
+                Vector3 v = rotated[i];
+
+                if (v.y < sampleMinY || v.y > sampleMaxY)
+                {
+                    continue;
+                }
+
+                float dx = v.x - centerX;
+                float dz = v.z - centerZ;
+                float radial = Mathf.Sqrt((dx * dx) + (dz * dz));
+                allRadii.Add(radial);
+
+                if (v.y <= minY + endWindow)
+                {
+                    wristRadii.Add(radial);
+                }
+
+                if (v.y >= maxY - endWindow)
+                {
+                    knuckleRadii.Add(radial);
+                }
+            }
+
+            if (allRadii.Count == 0)
+            {
+                return false;
+            }
+
+            if (wristRadii.Count == 0)
+            {
+                wristRadii.AddRange(allRadii);
+            }
+
+            if (knuckleRadii.Count == 0)
+            {
+                knuckleRadii.AddRange(allRadii);
+            }
+
+            FitMode fitMode = ResolveFitMode(job, BoneFitRole.Default);
+            float radiusPercentile = job.Property.LimbFitProperty.GetRadiusPercentile(fitMode);
+            float globalRadius = Percentile(allRadii, Mathf.Min(radiusPercentile + 6.0f, 58.0f));
+            float wristRadius = Mathf.Min(Percentile(wristRadii, radiusPercentile), globalRadius);
+            float knuckleRadius = Mathf.Min(Percentile(knuckleRadii, radiusPercentile), globalRadius);
+            float maxAllowedRadius = Mathf.Max(0.008f, palmLength * 0.48f) * job.Property.LimbFitProperty.GetRadiusCapScale(fitMode);
+            float minRadius = job.Property.GenericFitProperty.MinRadius;
+
+            wristRadius = Mathf.Clamp(wristRadius * job.Property.LimbFitProperty.RadiusScale, minRadius, maxAllowedRadius);
+            knuckleRadius = Mathf.Clamp(knuckleRadius * job.Property.LimbFitProperty.RadiusScale, minRadius, maxAllowedRadius);
+
+            fitResult.LocalRotation = palmRotation;
+            fitResult.Direction = MagicaCapsuleCollider.Direction.Y;
+            fitResult.Center = new Vector3(centerX, centerY, centerZ);
+            fitResult.Length = length;
+            fitResult.RadiusAtMin = wristRadius;
+            fitResult.RadiusAtMax = knuckleRadius;
+            fitResult.ReverseDirection = false;
+
+            return true;
+        }
+
         internal static bool TryFitLimb(ColliderGenerationJob job, Vector3 childHint, BoneFitRole boneRole, ref CapsuleFitResult fitResult)
         {
             var limbSettings = job.Property.LimbFitProperty;

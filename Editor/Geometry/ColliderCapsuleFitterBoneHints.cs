@@ -106,6 +106,11 @@ namespace MagicaClothColliderBuilder
                 return settings.FingerFitMode;
             }
 
+            if (IsHumanoidHandBone(animator, boneTransform))
+            {
+                return settings.FingerFitMode;
+            }
+
             if (IsHumanoidArmBone(animator, boneTransform))
             {
                 return settings.ArmFitMode;
@@ -219,6 +224,84 @@ namespace MagicaClothColliderBuilder
             }
 
             return false;
+        }
+
+        private static bool IsHumanoidHandBone(Animator animator, Transform boneTransform)
+        {
+            if (animator == null || boneTransform == null)
+            {
+                return false;
+            }
+
+            return boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftHand) ||
+                   boneTransform == animator.GetBoneTransform(HumanBodyBones.RightHand);
+        }
+
+        private static bool TryPalmHint(Animator animator, Transform handTransform, out Vector3 palmAxis, out float palmLength)
+        {
+            palmAxis = Vector3.zero;
+            palmLength = 0.0f;
+
+            if (!IsHumanoidHandBone(animator, handTransform))
+            {
+                return false;
+            }
+
+            bool isLeft = handTransform == animator.GetBoneTransform(HumanBodyBones.LeftHand);
+            HumanBodyBones[] proximalBones = isLeft
+                ? new[]
+                {
+                    HumanBodyBones.LeftIndexProximal,
+                    HumanBodyBones.LeftMiddleProximal,
+                    HumanBodyBones.LeftRingProximal,
+                    HumanBodyBones.LeftLittleProximal,
+                }
+                : new[]
+                {
+                    HumanBodyBones.RightIndexProximal,
+                    HumanBodyBones.RightMiddleProximal,
+                    HumanBodyBones.RightRingProximal,
+                    HumanBodyBones.RightLittleProximal,
+                };
+
+            Vector3 sum = Vector3.zero;
+            int count = 0;
+            float middleLength = 0.0f;
+
+            for (int i = 0; i < proximalBones.Length; ++i)
+            {
+                var proximal = animator.GetBoneTransform(proximalBones[i]);
+
+                if (proximal == null)
+                {
+                    continue;
+                }
+
+                Vector3 local = handTransform.InverseTransformPoint(proximal.position);
+
+                if (local.sqrMagnitude <= 1.0e-8f)
+                {
+                    continue;
+                }
+
+                sum += local;
+                ++count;
+
+                if (proximalBones[i] == (isLeft ? HumanBodyBones.LeftMiddleProximal : HumanBodyBones.RightMiddleProximal))
+                {
+                    middleLength = local.magnitude;
+                }
+            }
+
+            if (count == 0)
+            {
+                return false;
+            }
+
+            palmAxis = sum / count;
+            palmLength = middleLength > 0.0f ? middleLength : palmAxis.magnitude;
+
+            return palmAxis.sqrMagnitude > 1.0e-8f && palmLength > 0.0f;
         }
 
         private static bool IsHumanoidArmBone(Animator animator, Transform boneTransform)

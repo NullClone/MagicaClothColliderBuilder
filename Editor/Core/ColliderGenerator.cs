@@ -197,12 +197,6 @@ namespace MagicaClothColliderBuilder
                 return m_Property.GenerationProperty.IncludeFingers;
             }
 
-            if ((boneId == HumanBodyBones.LeftHand || boneId == HumanBodyBones.RightHand) &&
-                m_Property.GenerationProperty.IncludeFingers)
-            {
-                return false;
-            }
-
             if (boneId == HumanBodyBones.Hips)
             {
                 return m_Property.GenerationProperty.IncludeHips;

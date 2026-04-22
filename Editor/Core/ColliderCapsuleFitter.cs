@@ -28,6 +28,13 @@ namespace MagicaClothColliderBuilder
 
             var boneRole = DetectBoneFitRole(job.TargetBone.transform);
 
+            if (job.Property.GenerationProperty.IncludeFingers &&
+                IsHumanoidHandBone(job.Animator, job.TargetBone.transform) &&
+                TryFitPalm(job, ref fitResult))
+            {
+                return true;
+            }
+
             if (boneRole == BoneFitRole.Head && TryFitHead(job, out fitResult))
             {
                 return true;
