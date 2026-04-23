@@ -6,9 +6,9 @@ namespace MagicaClothColliderBuilder
 {
     public static partial class ColliderFitter
     {
-        internal static bool TryFitBody(ColliderGenerationJob job, BoneFitRole boneRole, out FitResult fitResult)
+        public static bool TryFitBody(ColliderGenerationJob job, BoneFitRole boneRole, out FitResult result)
         {
-            fitResult = default;
+            result = default;
 
             var vertices = job.Vertices;
 
@@ -16,7 +16,9 @@ namespace MagicaClothColliderBuilder
 
             var boneTransform = job.TargetBone.transform;
             var bodySettings = job.Property.BodyFitProperty;
+
             FitMode fitMode = ResolveFitMode(job, boneRole);
+
             var worldHorizontal = bodySettings.HorizontalAxis == BodyHorizontalAxis.RootForward
                 ? (boneTransform.root != null ? boneTransform.root.forward : Vector3.forward)
                 : (boneTransform.root != null ? boneTransform.root.right : Vector3.right);
@@ -96,9 +98,10 @@ namespace MagicaClothColliderBuilder
             maxRadius *= bodySettings.GetRadiusCapScale(fitMode);
             maxRadius *= bodySettings.BendSafeRadiusScale;
             radius = Mathf.Clamp(radius, bodySettings.MinRadius, maxRadius);
-            Vector3 center = ResolveBendSafeCenter(rotated, length, radius, bodySettings);
 
-            fitResult = new FitResult
+            var center = ResolveBendSafeCenter(rotated, length, radius, bodySettings);
+
+            result = new FitResult
             {
                 LocalRotation = localRotation,
                 Direction = MagicaCapsuleCollider.Direction.Y,
@@ -111,6 +114,7 @@ namespace MagicaClothColliderBuilder
 
             return true;
         }
+
 
         private static float GetBendSafeMaxLength(BodyFitProperty settings, BoneFitRole role, float jointDistance)
         {
@@ -127,6 +131,7 @@ namespace MagicaClothColliderBuilder
                 BoneFitRole.UpperChest => 1.10f,
                 _ => 1.20f,
             };
+
             float safeLength = (jointDistance * settings.BendSafeLengthScale * roleScale) - (settings.BendSafeJointMargin * 2.0f);
 
             return Mathf.Max(settings.MinLength, safeLength);
@@ -162,14 +167,13 @@ namespace MagicaClothColliderBuilder
                 return Vector3.zero;
             }
 
-            Vector3 rotatedCenter = new Vector3(
+            Vector3 rotatedCenter = new(
                 Mathf.Clamp(Percentile(xValues, 50.0f), -centerLimit, centerLimit),
                 0.0f,
                 Mathf.Clamp(Percentile(zValues, 50.0f), -centerLimit, centerLimit));
 
             return rotatedCenter;
         }
-
 
         private static Vector3 GetHipsUp(Animator animator, Transform hipsTransform)
         {
@@ -182,26 +186,26 @@ namespace MagicaClothColliderBuilder
             return localSpine.normalized;
         }
 
-        private static Vector3 GetBodyUp(Animator animator, Transform bodyTransform, BoneFitRole boneRole)
+        private static Vector3 GetBodyUp(Animator animator, Transform bodyTransform, BoneFitRole role)
         {
-            if (boneRole == BoneFitRole.Hips)
+            if (role == BoneFitRole.Hips)
             {
                 return GetHipsUp(animator, bodyTransform);
             }
 
             Transform upTarget = null;
 
-            if (boneRole == BoneFitRole.Spine)
+            if (role == BoneFitRole.Spine)
             {
-                upTarget = animator.GetBoneTransform(HumanBodyBones.Chest) ?? animator.GetBoneTransform(HumanBodyBones.UpperChest);
+                upTarget = animator.GetBoneTransform(HumanBodyBones.Chest);
             }
-            else if (boneRole == BoneFitRole.Chest)
+            else if (role == BoneFitRole.Chest)
             {
-                upTarget = animator.GetBoneTransform(HumanBodyBones.UpperChest) ?? animator.GetBoneTransform(HumanBodyBones.Neck);
+                upTarget = animator.GetBoneTransform(HumanBodyBones.UpperChest);
             }
-            else if (boneRole == BoneFitRole.UpperChest)
+            else if (role == BoneFitRole.UpperChest)
             {
-                upTarget = animator.GetBoneTransform(HumanBodyBones.Neck) ?? animator.GetBoneTransform(HumanBodyBones.Head);
+                upTarget = animator.GetBoneTransform(HumanBodyBones.Neck);
             }
 
             if (upTarget != null)
@@ -232,15 +236,15 @@ namespace MagicaClothColliderBuilder
             }
             else if (role == BoneFitRole.Spine)
             {
-                target = animator.GetBoneTransform(HumanBodyBones.Chest) ?? animator.GetBoneTransform(HumanBodyBones.UpperChest);
+                target = animator.GetBoneTransform(HumanBodyBones.Chest);
             }
             else if (role == BoneFitRole.Chest)
             {
-                target = animator.GetBoneTransform(HumanBodyBones.UpperChest) ?? animator.GetBoneTransform(HumanBodyBones.Neck);
+                target = animator.GetBoneTransform(HumanBodyBones.UpperChest);
             }
             else if (role == BoneFitRole.UpperChest)
             {
-                target = animator.GetBoneTransform(HumanBodyBones.Neck) ?? animator.GetBoneTransform(HumanBodyBones.Head);
+                target = animator.GetBoneTransform(HumanBodyBones.Neck);
             }
 
             if (target == null)

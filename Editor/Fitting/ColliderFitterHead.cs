@@ -6,7 +6,7 @@ namespace MagicaClothColliderBuilder
 {
     public static partial class ColliderFitter
     {
-        internal static bool TryFitHead(ColliderGenerationJob job, out FitResult fitResult)
+        public static bool TryFitHead(ColliderGenerationJob job, out FitResult fitResult)
         {
             fitResult = default;
 
@@ -22,6 +22,7 @@ namespace MagicaClothColliderBuilder
 
             var fitMode = ResolveFitMode(job, BoneFitRole.Head);
             var localUp = ResolveHeadLocalUp(headTransform);
+
             Quaternion localRotation = Quaternion.FromToRotation(Vector3.up, localUp);
             Quaternion inverseRotation = Quaternion.Inverse(localRotation);
 
@@ -54,6 +55,7 @@ namespace MagicaClothColliderBuilder
             {
                 float lower = fitMode == FitMode.Inner ? 8.0f : 3.0f;
                 float upper = fitMode == FitMode.Inner ? 92.0f : 97.0f;
+
                 minX = Percentile(xValues, lower);
                 maxX = Percentile(xValues, upper);
                 minY = Percentile(yValues, lower);
@@ -104,6 +106,7 @@ namespace MagicaClothColliderBuilder
             return true;
         }
 
+
         private static Vector3 ResolveHeadLocalUp(Transform headTransform)
         {
             if (headTransform == null)
@@ -139,6 +142,5 @@ namespace MagicaClothColliderBuilder
 
             return localForward.normalized;
         }
-
     }
 }
