@@ -121,9 +121,9 @@ namespace MagicaClothColliderBuilder
                 return settings.LegFitMode;
             }
 
-            if (IsHumanoidToeBone(animator, boneTransform))
+            if (IsHumanoidFootBone(animator, boneTransform))
             {
-                return settings.ToeFitMode;
+                return settings.FootFitMode;
             }
 
             if (role == BoneFitRole.Head || role == BoneFitRole.Neck)
@@ -327,7 +327,18 @@ namespace MagicaClothColliderBuilder
             return boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg) ||
                    boneTransform == animator.GetBoneTransform(HumanBodyBones.RightUpperLeg) ||
                    boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg) ||
-                   boneTransform == animator.GetBoneTransform(HumanBodyBones.RightLowerLeg) ||
+                   boneTransform == animator.GetBoneTransform(HumanBodyBones.RightLowerLeg);
+        }
+
+        private static bool IsHumanoidFootBone(Animator animator, Transform boneTransform)
+        {
+            if (animator == null || boneTransform == null)
+            {
+                return false;
+            }
+
+            return boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftToes) ||
+                   boneTransform == animator.GetBoneTransform(HumanBodyBones.RightToes) ||
                    boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftFoot) ||
                    boneTransform == animator.GetBoneTransform(HumanBodyBones.RightFoot);
         }
@@ -341,6 +352,66 @@ namespace MagicaClothColliderBuilder
 
             return boneTransform == animator.GetBoneTransform(HumanBodyBones.LeftToes) ||
                    boneTransform == animator.GetBoneTransform(HumanBodyBones.RightToes);
+        }
+
+        private static bool TryFootHint(Animator animator, Transform footTransform, out Vector3 footAxis, out float footLength)
+        {
+            footAxis = Vector3.zero;
+            footLength = 0.0f;
+
+            if (animator == null || footTransform == null)
+            {
+                return false;
+            }
+
+            Transform toeTransform = null;
+
+            if (footTransform == animator.GetBoneTransform(HumanBodyBones.LeftFoot))
+            {
+                toeTransform = animator.GetBoneTransform(HumanBodyBones.LeftToes);
+            }
+            else if (footTransform == animator.GetBoneTransform(HumanBodyBones.RightFoot))
+            {
+                toeTransform = animator.GetBoneTransform(HumanBodyBones.RightToes);
+            }
+
+            if (toeTransform != null)
+            {
+                footAxis = footTransform.InverseTransformPoint(toeTransform.position);
+                footLength = footAxis.magnitude;
+            }
+
+            if (footAxis.sqrMagnitude <= 1.0e-8f)
+            {
+                footAxis = EstimateFootForwardFromRoot(animator, footTransform);
+                footLength = Mathf.Max(footLength, 0.08f);
+            }
+
+            return footAxis.sqrMagnitude > 1.0e-8f;
+        }
+
+        private static Vector3 EstimateFootForwardFromRoot(Animator animator, Transform footTransform)
+        {
+            Vector3 worldForward = footTransform.root != null ? footTransform.root.forward : Vector3.forward;
+
+            if (animator != null)
+            {
+                var hips = animator.GetBoneTransform(HumanBodyBones.Hips);
+
+                if (hips != null)
+                {
+                    worldForward = hips.forward;
+                }
+            }
+
+            Vector3 localForward = footTransform.InverseTransformDirection(worldForward);
+
+            if (localForward.sqrMagnitude <= 1.0e-8f)
+            {
+                localForward = Vector3.forward;
+            }
+
+            return localForward.normalized;
         }
 
         private static bool TryHumanoidHint(Animator animator, Transform boneTransform, out Vector3 directionHint)

@@ -38,6 +38,19 @@ namespace MagicaClothColliderBuilder
                 return true;
             }
 
+            if (IsHumanoidToeBone(job.Animator, job.TargetBone.transform) &&
+                TryFitToe(job, ref fitResult))
+            {
+                return true;
+            }
+
+            if (IsHumanoidFootBone(job.Animator, job.TargetBone.transform) &&
+                !IsHumanoidToeBone(job.Animator, job.TargetBone.transform) &&
+                TryFitFoot(job, ref fitResult))
+            {
+                return true;
+            }
+
             if (IsBodyRole(boneRole) && TryFitBody(job, boneRole, out fitResult))
             {
                 return true;

@@ -142,7 +142,7 @@ namespace MagicaClothColliderBuilder
                 generation.ArmFitMode = (FitMode)EditorGUILayout.EnumPopup("Arms", generation.ArmFitMode);
                 generation.FingerFitMode = (FitMode)EditorGUILayout.EnumPopup("Fingers", generation.FingerFitMode);
                 generation.LegFitMode = (FitMode)EditorGUILayout.EnumPopup("Legs", generation.LegFitMode);
-                generation.ToeFitMode = (FitMode)EditorGUILayout.EnumPopup("Toes", generation.ToeFitMode);
+                generation.FootFitMode = (FitMode)EditorGUILayout.EnumPopup("Foot / Shoes", generation.FootFitMode);
                 generation.BodyFitMode = (FitMode)EditorGUILayout.EnumPopup("Body", generation.BodyFitMode);
                 generation.HeadFitMode = (FitMode)EditorGUILayout.EnumPopup("Head / Neck", generation.HeadFitMode);
 
@@ -367,15 +367,9 @@ namespace MagicaClothColliderBuilder
                 }
             }
 
-            if (m_GeneratedColliders != null && m_GeneratedColliders.Count > 0)
+            if (GUILayout.Button("Select Colliders", GUILayout.Height(26f)))
             {
-                if (GUILayout.Button("Select Colliders", GUILayout.Height(26f)))
-                {
-                    Selection.objects = m_GeneratedColliders
-                        .Where(c => c != null && c.gameObject != null)
-                        .Select(c => c.gameObject)
-                        .ToArray();
-                }
+                Selection.objects = ColliderGenerator.FindGeneratedColliders(m_TargetAvatarRoot).Select(c => c.gameObject).ToArray();
             }
 
             if (GUILayout.Button("Cleanup Existing Colliders", GUILayout.Height(26f)))
