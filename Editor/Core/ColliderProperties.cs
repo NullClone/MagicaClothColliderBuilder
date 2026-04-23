@@ -132,6 +132,86 @@ namespace MagicaClothColliderBuilder
     }
 
     [Serializable]
+    public class FootFitProperty
+    {
+        public float AxisFlatten = 0.75f;
+        public float FootToeStopMarginScale = 0.03f;
+        public float FootToeStopMarginMin = 0.003f;
+        public float FootToeStopMarginMax = 0.012f;
+        public float FootHeelMarginScale = 0.08f;
+        public float FootHeelMarginMin = 0.006f;
+        public float FootSampleMarginScale = 0.08f;
+        public float FootSampleMarginMin = 0.004f;
+        public float FootForwardSampleMarginScale = 0.04f;
+        public float FootForwardSampleMarginMin = 0.004f;
+        public float FootMinRadius = 0.012f;
+        public float FootMaxRadiusByLength = 0.55f;
+        public float FootMaxRadiusByMeshLength = 0.95f;
+        public float FootInnerRadiusPercentile = 84.0f;
+        public float FootBalancedRadiusPercentile = 94.0f;
+        public float FootOuterRadiusPercentile = 98.0f;
+        public float FootInnerRadiusScale = 1.05f;
+        public float FootBalancedRadiusScale = 1.12f;
+        public float FootOuterRadiusScale = 1.18f;
+        public float ToeBackOverlapScale = 0.08f;
+        public float ToeBackOverlapMin = 0.004f;
+        public float ToeMinLength = 0.025f;
+        public float ToeMinLengthByFootToToe = 0.36f;
+        public float ToeGenericMinLengthScale = 1.6f;
+        public float ToeTipMarginScale = 0.08f;
+        public float ToeTipMarginMin = 0.005f;
+        public float ToeBaseMarginScale = 0.04f;
+        public float ToeBaseMarginMin = 0.003f;
+        public float ToeBaseMarginMax = 0.010f;
+        public float ToeSampleMarginScale = 0.12f;
+        public float ToeSampleMarginMin = 0.004f;
+        public float ToeMinRadius = 0.010f;
+        public float ToeMinRadiusByLength = 0.18f;
+        public float ToeMinRadiusByFootToToe = 0.12f;
+        public float ToeMaxRadiusByLength = 0.58f;
+        public float ToeInnerRadiusPercentile = 82.0f;
+        public float ToeBalancedRadiusPercentile = 94.0f;
+        public float ToeOuterRadiusPercentile = 98.0f;
+        public float ToeInnerRadiusScale = 1.04f;
+        public float ToeBalancedRadiusScale = 1.14f;
+        public float ToeOuterRadiusScale = 1.20f;
+        public float ToeFallbackLengthByFootToToe = 0.55f;
+        public float ToeFallbackMinLength = 0.035f;
+        public float ToeFallbackMaxLength = 0.08f;
+        public float ToeFallbackRadiusByLength = 0.32f;
+        public float ToeFallbackMinRadius = 0.012f;
+        public float ToeFallbackMaxRadius = 0.03f;
+
+        public float GetFootRadiusPercentile(FitMode fitMode) => fitMode switch
+        {
+            FitMode.Inner => FootInnerRadiusPercentile,
+            FitMode.Outer => FootOuterRadiusPercentile,
+            _ => FootBalancedRadiusPercentile,
+        };
+
+        public float GetFootRadiusScale(FitMode fitMode) => fitMode switch
+        {
+            FitMode.Inner => FootInnerRadiusScale,
+            FitMode.Outer => FootOuterRadiusScale,
+            _ => FootBalancedRadiusScale,
+        };
+
+        public float GetToeRadiusPercentile(FitMode fitMode) => fitMode switch
+        {
+            FitMode.Inner => ToeInnerRadiusPercentile,
+            FitMode.Outer => ToeOuterRadiusPercentile,
+            _ => ToeBalancedRadiusPercentile,
+        };
+
+        public float GetToeRadiusScale(FitMode fitMode) => fitMode switch
+        {
+            FitMode.Inner => ToeInnerRadiusScale,
+            FitMode.Outer => ToeOuterRadiusScale,
+            _ => ToeBalancedRadiusScale,
+        };
+    }
+
+    [Serializable]
     public class GenericFitProperty
     {
         public float DefaultFitPercentile = 70.0f;
@@ -231,6 +311,7 @@ namespace MagicaClothColliderBuilder
         public LimbFitProperty LimbFitProperty = new();
         public BodyFitProperty BodyFitProperty = new();
         public HeadFitProperty HeadFitProperty = new();
+        public FootFitProperty FootFitProperty = new();
         public GenericFitProperty GenericFitProperty = new();
     }
 

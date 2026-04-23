@@ -299,6 +299,17 @@ namespace MagicaClothColliderBuilder
             var capsuleCollider = Undo.AddComponent<MagicaCapsuleCollider>(colliderGameObject);
             Undo.RecordObject(capsuleCollider, UndoGroupName);
 
+            if (ColliderFitter.TryCreateToeFallbackFit(m_Animator, boneTransform, m_Property, out FitResult toeFallbackResult))
+            {
+                colliderGameObject.transform.localRotation = toeFallbackResult.LocalRotation;
+                capsuleCollider.direction = toeFallbackResult.Direction;
+                capsuleCollider.center = toeFallbackResult.Center;
+                capsuleCollider.SetSize(toeFallbackResult.RadiusAtMin, toeFallbackResult.RadiusAtMax, toeFallbackResult.Length);
+                capsuleCollider.reverseDirection = toeFallbackResult.ReverseDirection;
+                capsuleCollider.UpdateParameters();
+                return capsuleCollider;
+            }
+
             if (boneTransform.childCount > 0)
             {
                 float maxDistance = 0f;
@@ -339,21 +350,6 @@ namespace MagicaClothColliderBuilder
             {
                 float defaultRadius = 0.02f;
                 float defaultLength = 0.02f;
-                bool isToeFallback = IsHumanoidToeBone(boneTransform);
-
-                if (isToeFallback)
-                {
-                    float parentDistance = boneTransform.parent != null ? boneTransform.localPosition.magnitude : 0.05f;
-                    defaultLength = Mathf.Clamp(parentDistance * 0.55f, 0.035f, 0.08f);
-                    defaultRadius = Mathf.Clamp(defaultLength * 0.32f, 0.012f, 0.03f);
-
-                    Vector3 localForward = boneTransform.InverseTransformDirection(GetToeForwardAlignedToFoot(boneTransform));
-
-                    if (localForward.sqrMagnitude > 1.0e-8f)
-                    {
-                        colliderGameObject.transform.localRotation = Quaternion.FromToRotation(Vector3.up, localForward.normalized);
-                    }
-                }
 
                 if (ColliderFitter.DetectBoneFitRole(boneTransform) == BoneFitRole.UpperChest)
                 {
@@ -362,93 +358,11 @@ namespace MagicaClothColliderBuilder
                 }
 
                 capsuleCollider.SetSize(defaultRadius, defaultRadius, defaultLength);
-                if (isToeFallback)
-                {
-                    capsuleCollider.center = new Vector3(0.0f, defaultLength * 0.5f, 0.0f);
-                }
-                else
-                {
-                    capsuleCollider.center = Vector3.zero;
-                }
+                capsuleCollider.center = Vector3.zero;
                 capsuleCollider.direction = MagicaCapsuleCollider.Direction.Y;
                 capsuleCollider.UpdateParameters();
                 return capsuleCollider;
             }
-        }
-
-        private bool IsHumanoidToeBone(Transform boneTransform)
-        {
-            if (m_Animator == null || boneTransform == null)
-            {
-                return false;
-            }
-
-            return boneTransform == m_Animator.GetBoneTransform(HumanBodyBones.LeftToes) ||
-                   boneTransform == m_Animator.GetBoneTransform(HumanBodyBones.RightToes);
-        }
-
-        private Vector3 GetAvatarForward()
-        {
-            if (m_Animator != null)
-            {
-                var hips = m_Animator.GetBoneTransform(HumanBodyBones.Hips);
-
-                if (hips != null)
-                {
-                    return hips.forward;
-                }
-
-                return m_Animator.transform.forward;
-            }
-
-            return m_AvatarRoot != null ? m_AvatarRoot.transform.forward : Vector3.forward;
-        }
-
-        private Vector3 GetToeForwardAlignedToFoot(Transform toeTransform)
-        {
-            if (m_Animator == null || toeTransform == null)
-            {
-                return GetAvatarForward();
-            }
-
-            Transform footTransform = null;
-
-            if (toeTransform == m_Animator.GetBoneTransform(HumanBodyBones.LeftToes))
-            {
-                footTransform = m_Animator.GetBoneTransform(HumanBodyBones.LeftFoot);
-            }
-            else if (toeTransform == m_Animator.GetBoneTransform(HumanBodyBones.RightToes))
-            {
-                footTransform = m_Animator.GetBoneTransform(HumanBodyBones.RightFoot);
-            }
-
-            if (footTransform == null)
-            {
-                return GetAvatarForward();
-            }
-
-            Vector3 forward = toeTransform.position - footTransform.position;
-
-            if (forward.sqrMagnitude <= 1.0e-8f)
-            {
-                forward = GetAvatarForward();
-            }
-
-            Vector3 avatarUp = m_Animator.transform.up;
-
-            if (avatarUp.sqrMagnitude <= 1.0e-8f)
-            {
-                avatarUp = m_AvatarRoot != null ? m_AvatarRoot.transform.up : Vector3.up;
-            }
-
-            Vector3 flatForward = Vector3.ProjectOnPlane(forward, avatarUp);
-
-            if (flatForward.sqrMagnitude > 1.0e-8f)
-            {
-                forward = Vector3.Slerp(forward.normalized, flatForward.normalized, 0.75f);
-            }
-
-            return forward.sqrMagnitude > 1.0e-8f ? forward.normalized : GetAvatarForward();
         }
     }
 }

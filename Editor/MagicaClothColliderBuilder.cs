@@ -12,6 +12,7 @@ namespace MagicaClothColliderBuilder
         {
             Generic,
             Limbs,
+            Foot,
             Body,
             Head,
             Advanced,
@@ -44,7 +45,7 @@ namespace MagicaClothColliderBuilder
         {
             EditorGUILayout.Space();
 
-            m_SelectedTab = (SettingsTab)GUILayout.Toolbar((int)m_SelectedTab, new[] { "Generic", "Limbs", "Body", "Head", "Advanced" }, GUILayout.Height(28f));
+            m_SelectedTab = (SettingsTab)GUILayout.Toolbar((int)m_SelectedTab, new[] { "Generic", "Limbs", "Foot", "Body", "Head", "Advanced" }, GUILayout.Height(28f));
 
             EditorGUILayout.Space();
 
@@ -57,6 +58,9 @@ namespace MagicaClothColliderBuilder
                     break;
                 case SettingsTab.Limbs:
                     DrawLimbTab();
+                    break;
+                case SettingsTab.Foot:
+                    DrawFootTab();
                     break;
                 case SettingsTab.Body:
                     DrawBodyTab();
@@ -142,7 +146,6 @@ namespace MagicaClothColliderBuilder
                 generation.ArmFitMode = (FitMode)EditorGUILayout.EnumPopup("Arms", generation.ArmFitMode);
                 generation.FingerFitMode = (FitMode)EditorGUILayout.EnumPopup("Fingers", generation.FingerFitMode);
                 generation.LegFitMode = (FitMode)EditorGUILayout.EnumPopup("Legs", generation.LegFitMode);
-                generation.FootFitMode = (FitMode)EditorGUILayout.EnumPopup("Foot / Shoes", generation.FootFitMode);
                 generation.BodyFitMode = (FitMode)EditorGUILayout.EnumPopup("Body", generation.BodyFitMode);
                 generation.HeadFitMode = (FitMode)EditorGUILayout.EnumPopup("Head / Neck", generation.HeadFitMode);
 
@@ -152,7 +155,6 @@ namespace MagicaClothColliderBuilder
                 generation.IncludeHips = EditorGUILayout.Toggle("Include Hips", generation.IncludeHips);
                 generation.IncludeShoulders = EditorGUILayout.Toggle("Include Shoulders", generation.IncludeShoulders);
                 generation.IncludeFingers = EditorGUILayout.Toggle("Include Fingers", generation.IncludeFingers);
-                generation.IncludeToes = EditorGUILayout.Toggle("Include Toes", generation.IncludeToes);
                 generation.IncludeUpperChest = EditorGUILayout.Toggle("Include UpperChest", generation.IncludeUpperChest);
 
                 EditorGUILayout.Space();
@@ -163,6 +165,78 @@ namespace MagicaClothColliderBuilder
                     m_UseCustomSkinnedMeshes = false;
                     m_CustomSkinnedMeshes.Clear();
                 }
+            });
+        }
+
+        private void DrawFootTab()
+        {
+            DrawCard("Foot / Toes", () =>
+            {
+                GenerationProperty generation = m_Settings.GenerationProperty;
+                FootFitProperty foot = m_Settings.FootFitProperty;
+
+                generation.FootFitMode = (FitMode)EditorGUILayout.EnumPopup("Fit Mode", generation.FootFitMode);
+                generation.IncludeToes = EditorGUILayout.Toggle("Include Toes", generation.IncludeToes);
+                foot.AxisFlatten = EditorGUILayout.Slider("Axis Flatten", foot.AxisFlatten, 0.0f, 1.0f);
+            });
+
+            DrawCard("Foot Body", () =>
+            {
+                FootFitProperty foot = m_Settings.FootFitProperty;
+                foot.FootHeelMarginScale = EditorGUILayout.Slider("Heel Margin", foot.FootHeelMarginScale, 0.0f, 0.2f);
+                foot.FootToeStopMarginScale = EditorGUILayout.Slider("Toe Stop Margin", foot.FootToeStopMarginScale, 0.0f, 0.12f);
+                foot.FootSampleMarginScale = EditorGUILayout.Slider("Sample Margin", foot.FootSampleMarginScale, 0.0f, 0.2f);
+                foot.FootForwardSampleMarginScale = EditorGUILayout.Slider("Forward Sample Margin", foot.FootForwardSampleMarginScale, 0.0f, 0.15f);
+                foot.FootMinRadius = EditorGUILayout.Slider("Min Radius", foot.FootMinRadius, 0.001f, 0.05f);
+                foot.FootMaxRadiusByLength = EditorGUILayout.Slider("Max Radius / Length", foot.FootMaxRadiusByLength, 0.1f, 1.0f);
+                foot.FootMaxRadiusByMeshLength = EditorGUILayout.Slider("Max Radius / Mesh Length", foot.FootMaxRadiusByMeshLength, 0.1f, 1.5f);
+            });
+
+            DrawCard("Foot Radius", () =>
+            {
+                FootFitProperty foot = m_Settings.FootFitProperty;
+                foot.FootInnerRadiusPercentile = EditorGUILayout.Slider("Inner Percentile", foot.FootInnerRadiusPercentile, 50f, 98f);
+                foot.FootBalancedRadiusPercentile = EditorGUILayout.Slider("Balanced Percentile", foot.FootBalancedRadiusPercentile, 60f, 100f);
+                foot.FootOuterRadiusPercentile = EditorGUILayout.Slider("Outer Percentile", foot.FootOuterRadiusPercentile, 70f, 100f);
+                foot.FootInnerRadiusScale = EditorGUILayout.Slider("Inner Scale", foot.FootInnerRadiusScale, 0.5f, 1.5f);
+                foot.FootBalancedRadiusScale = EditorGUILayout.Slider("Balanced Scale", foot.FootBalancedRadiusScale, 0.5f, 1.8f);
+                foot.FootOuterRadiusScale = EditorGUILayout.Slider("Outer Scale", foot.FootOuterRadiusScale, 0.5f, 2.0f);
+            });
+
+            DrawCard("Toes", () =>
+            {
+                FootFitProperty foot = m_Settings.FootFitProperty;
+                foot.ToeBackOverlapScale = EditorGUILayout.Slider("Back Overlap", foot.ToeBackOverlapScale, 0.0f, 0.25f);
+                foot.ToeMinLength = EditorGUILayout.Slider("Min Length", foot.ToeMinLength, 0.005f, 0.1f);
+                foot.ToeMinLengthByFootToToe = EditorGUILayout.Slider("Min Length / Foot-Toe", foot.ToeMinLengthByFootToToe, 0.0f, 1.0f);
+                foot.ToeTipMarginScale = EditorGUILayout.Slider("Tip Margin", foot.ToeTipMarginScale, 0.0f, 0.25f);
+                foot.ToeBaseMarginScale = EditorGUILayout.Slider("Base Margin", foot.ToeBaseMarginScale, 0.0f, 0.15f);
+                foot.ToeSampleMarginScale = EditorGUILayout.Slider("Sample Margin", foot.ToeSampleMarginScale, 0.0f, 0.25f);
+                foot.ToeMinRadius = EditorGUILayout.Slider("Min Radius", foot.ToeMinRadius, 0.001f, 0.05f);
+                foot.ToeMinRadiusByLength = EditorGUILayout.Slider("Min Radius / Length", foot.ToeMinRadiusByLength, 0.0f, 0.6f);
+                foot.ToeMaxRadiusByLength = EditorGUILayout.Slider("Max Radius / Length", foot.ToeMaxRadiusByLength, 0.1f, 1.0f);
+            });
+
+            DrawCard("Toe Radius", () =>
+            {
+                FootFitProperty foot = m_Settings.FootFitProperty;
+                foot.ToeInnerRadiusPercentile = EditorGUILayout.Slider("Inner Percentile", foot.ToeInnerRadiusPercentile, 50f, 98f);
+                foot.ToeBalancedRadiusPercentile = EditorGUILayout.Slider("Balanced Percentile", foot.ToeBalancedRadiusPercentile, 60f, 100f);
+                foot.ToeOuterRadiusPercentile = EditorGUILayout.Slider("Outer Percentile", foot.ToeOuterRadiusPercentile, 70f, 100f);
+                foot.ToeInnerRadiusScale = EditorGUILayout.Slider("Inner Scale", foot.ToeInnerRadiusScale, 0.5f, 1.5f);
+                foot.ToeBalancedRadiusScale = EditorGUILayout.Slider("Balanced Scale", foot.ToeBalancedRadiusScale, 0.5f, 1.8f);
+                foot.ToeOuterRadiusScale = EditorGUILayout.Slider("Outer Scale", foot.ToeOuterRadiusScale, 0.5f, 2.0f);
+            });
+
+            DrawCard("Toe Fallback", () =>
+            {
+                FootFitProperty foot = m_Settings.FootFitProperty;
+                foot.ToeFallbackLengthByFootToToe = EditorGUILayout.Slider("Length / Foot-Toe", foot.ToeFallbackLengthByFootToToe, 0.0f, 1.2f);
+                foot.ToeFallbackMinLength = EditorGUILayout.Slider("Min Length", foot.ToeFallbackMinLength, 0.005f, 0.15f);
+                foot.ToeFallbackMaxLength = EditorGUILayout.Slider("Max Length", foot.ToeFallbackMaxLength, foot.ToeFallbackMinLength, 0.2f);
+                foot.ToeFallbackRadiusByLength = EditorGUILayout.Slider("Radius / Length", foot.ToeFallbackRadiusByLength, 0.05f, 0.8f);
+                foot.ToeFallbackMinRadius = EditorGUILayout.Slider("Min Radius", foot.ToeFallbackMinRadius, 0.001f, 0.05f);
+                foot.ToeFallbackMaxRadius = EditorGUILayout.Slider("Max Radius", foot.ToeFallbackMaxRadius, foot.ToeFallbackMinRadius, 0.08f);
             });
         }
 

@@ -19,6 +19,7 @@ namespace MagicaClothColliderBuilder
             }
 
             footLength = Mathf.Max(footLength, job.Property.LimbFitProperty.MinJointDistance);
+            var footSettings = job.Property.FootFitProperty;
 
             Vector3 axis = ResolveFootAxis(job, footAxis);
             Quaternion footRotation = Quaternion.FromToRotation(Vector3.up, axis);
@@ -45,7 +46,9 @@ namespace MagicaClothColliderBuilder
 
             float meshFootLength = Mathf.Max(maxY - minY, footLength, job.Property.LimbFitProperty.MinJointDistance);
             float toeLimitY = Mathf.Max(0.0f, (inverseRotation * footAxis).y);
-            float toeStopMargin = Mathf.Min(Mathf.Max(meshFootLength * 0.03f, 0.003f), 0.012f);
+            float toeStopMargin = Mathf.Min(
+                Mathf.Max(meshFootLength * footSettings.FootToeStopMarginScale, footSettings.FootToeStopMarginMin),
+                footSettings.FootToeStopMarginMax);
             float toeLimitedMaxY = toeLimitY + toeStopMargin;
 
             if (toeLimitedMaxY > minY)
@@ -58,12 +61,14 @@ namespace MagicaClothColliderBuilder
                 return false;
             }
 
-            float heelMargin = Mathf.Max(meshFootLength * 0.08f, 0.006f);
+            float heelMargin = Mathf.Max(meshFootLength * footSettings.FootHeelMarginScale, footSettings.FootHeelMarginMin);
             minY -= heelMargin;
 
             float length = Mathf.Max(job.Property.GenericFitProperty.MinLength, maxY - minY);
-            float sampleMargin = Mathf.Max(length * 0.08f, 0.004f);
-            float forwardSampleMargin = Mathf.Min(sampleMargin, Mathf.Max(meshFootLength * 0.04f, 0.004f));
+            float sampleMargin = Mathf.Max(length * footSettings.FootSampleMarginScale, footSettings.FootSampleMarginMin);
+            float forwardSampleMargin = Mathf.Min(
+                sampleMargin,
+                Mathf.Max(meshFootLength * footSettings.FootForwardSampleMarginScale, footSettings.FootForwardSampleMarginMin));
             float sampleMinY = minY - sampleMargin;
             float sampleMaxY = maxY + forwardSampleMargin;
             var xValues = new List<float>();
@@ -90,12 +95,7 @@ namespace MagicaClothColliderBuilder
             float centerX = Percentile(xValues, 50.0f);
             float centerZ = Percentile(zValues, 50.0f);
             float centerY = (minY + maxY) * 0.5f;
-            float radiusPercentile = fitMode switch
-            {
-                FitMode.Inner => 84.0f,
-                FitMode.Outer => 98.0f,
-                _ => 94.0f,
-            };
+            float radiusPercentile = footSettings.GetFootRadiusPercentile(fitMode);
             var radialValues = new List<float>(xValues.Count);
 
             for (int i = 0; i < rotated.Length; ++i)
@@ -115,15 +115,13 @@ namespace MagicaClothColliderBuilder
                 return false;
             }
 
-            float radiusScale = fitMode switch
-            {
-                FitMode.Inner => 1.05f,
-                FitMode.Outer => 1.18f,
-                _ => 1.12f,
-            };
-            float radius = Percentile(radialValues, radiusPercentile) * job.Property.LimbFitProperty.RadiusScale * radiusScale;
-            float minRadius = Mathf.Max(job.Property.GenericFitProperty.MinRadius, 0.012f);
-            float maxRadius = Mathf.Max(minRadius, Mathf.Min(length * 0.55f, meshFootLength * 0.95f));
+            float radius = Percentile(radialValues, radiusPercentile) *
+                job.Property.LimbFitProperty.RadiusScale *
+                footSettings.GetFootRadiusScale(fitMode);
+            float minRadius = Mathf.Max(job.Property.GenericFitProperty.MinRadius, footSettings.FootMinRadius);
+            float maxRadius = Mathf.Max(
+                minRadius,
+                Mathf.Min(length * footSettings.FootMaxRadiusByLength, meshFootLength * footSettings.FootMaxRadiusByMeshLength));
             radius = Mathf.Clamp(radius, minRadius, maxRadius);
 
             fitResult.LocalRotation = footRotation;
@@ -148,7 +146,9 @@ namespace MagicaClothColliderBuilder
                 return false;
             }
 
-            if (!TryGetToeAxisAlignedToFoot(job.Animator, job.TargetBone.transform, out Vector3 axis, out float parentToeDistance))
+            var footSettings = job.Property.FootFitProperty;
+
+            if (!TryGetToeAxisAlignedToFoot(job.Animator, job.TargetBone.transform, footSettings.AxisFlatten, out Vector3 axis, out float parentToeDistance))
             {
                 axis = EstimateFootForwardFromRoot(job.Animator, job.TargetBone.transform);
                 parentToeDistance = job.TargetBone.transform?.parent != null ? job.TargetBone.transform.localPosition.magnitude : 0f;
@@ -172,12 +172,12 @@ namespace MagicaClothColliderBuilder
             float upper = fitMode == FitMode.Outer ? 100.0f : 99.0f;
             float observedMinY = Percentile(yValues, lower);
             float maxY = Mathf.Max(0.0f, Percentile(yValues, upper));
-            float maxBackOverlap = Mathf.Max(parentToeDistance * 0.08f, 0.004f);
+            float maxBackOverlap = Mathf.Max(parentToeDistance * footSettings.ToeBackOverlapScale, footSettings.ToeBackOverlapMin);
             float minY = Mathf.Clamp(observedMinY, -maxBackOverlap, 0.0f);
             float meshToeLength = Mathf.Max(maxY - minY, 0.0f);
             float minToeLength = Mathf.Max(
-                job.Property.GenericFitProperty.MinLength * 1.6f,
-                Mathf.Max(parentToeDistance * 0.36f, 0.025f));
+                job.Property.GenericFitProperty.MinLength * footSettings.ToeGenericMinLengthScale,
+                Mathf.Max(parentToeDistance * footSettings.ToeMinLengthByFootToToe, footSettings.ToeMinLength));
 
             if (meshToeLength < minToeLength)
             {
@@ -185,14 +185,16 @@ namespace MagicaClothColliderBuilder
                 meshToeLength = maxY - minY;
             }
 
-            float toeMargin = Mathf.Max(meshToeLength * 0.08f, 0.005f);
-            float baseMargin = Mathf.Min(Mathf.Max(parentToeDistance * 0.04f, 0.003f), 0.010f);
+            float toeMargin = Mathf.Max(meshToeLength * footSettings.ToeTipMarginScale, footSettings.ToeTipMarginMin);
+            float baseMargin = Mathf.Min(
+                Mathf.Max(parentToeDistance * footSettings.ToeBaseMarginScale, footSettings.ToeBaseMarginMin),
+                footSettings.ToeBaseMarginMax);
 
             minY = Mathf.Min(minY, 0.0f) - baseMargin;
             maxY += toeMargin;
 
             float length = Mathf.Max(job.Property.GenericFitProperty.MinLength, maxY - minY);
-            float sampleMargin = Mathf.Max(length * 0.12f, 0.004f);
+            float sampleMargin = Mathf.Max(length * footSettings.ToeSampleMarginScale, footSettings.ToeSampleMarginMin);
             float sampleMinY = minY - sampleMargin;
             float sampleMaxY = maxY + sampleMargin;
             var xValues = new List<float>();
@@ -216,12 +218,7 @@ namespace MagicaClothColliderBuilder
             float centerX = Percentile(xValues, 50.0f);
             float centerZ = Percentile(zValues, 50.0f);
             float centerY = (minY + maxY) * 0.5f;
-            float radiusPercentile = fitMode switch
-            {
-                FitMode.Inner => 82.0f,
-                FitMode.Outer => 98.0f,
-                _ => 94.0f,
-            };
+            float radiusPercentile = footSettings.GetToeRadiusPercentile(fitMode);
             var radialValues = new List<float>(xValues.Count);
 
             for (int i = 0; i < rotated.Length; ++i)
@@ -241,19 +238,14 @@ namespace MagicaClothColliderBuilder
                 return false;
             }
 
-            float radiusScale = fitMode switch
-            {
-                FitMode.Inner => 1.04f,
-                FitMode.Outer => 1.20f,
-                _ => 1.14f,
-            };
-
-            float radius = Percentile(radialValues, radiusPercentile) * job.Property.LimbFitProperty.RadiusScale * radiusScale;
+            float radius = Percentile(radialValues, radiusPercentile) *
+                job.Property.LimbFitProperty.RadiusScale *
+                footSettings.GetToeRadiusScale(fitMode);
             float minRadius = Mathf.Max(
                 job.Property.GenericFitProperty.MinRadius,
-                Mathf.Max(length * 0.18f, parentToeDistance * 0.12f),
-                0.010f);
-            float maxRadius = Mathf.Max(minRadius, length * 0.58f);
+                Mathf.Max(length * footSettings.ToeMinRadiusByLength, parentToeDistance * footSettings.ToeMinRadiusByFootToToe),
+                footSettings.ToeMinRadius);
+            float maxRadius = Mathf.Max(minRadius, length * footSettings.ToeMaxRadiusByLength);
             radius = Mathf.Clamp(radius, minRadius, maxRadius);
 
             fitResult.LocalRotation = toeRotation;
@@ -263,6 +255,45 @@ namespace MagicaClothColliderBuilder
             fitResult.RadiusAtMin = radius;
             fitResult.RadiusAtMax = radius;
             fitResult.ReverseDirection = false;
+
+            return true;
+        }
+
+        public static bool TryCreateToeFallbackFit(Animator animator, Transform toeTransform, SABoneColliderProperty property, out FitResult fitResult)
+        {
+            fitResult = default;
+
+            if (toeTransform == null || property == null || !IsHumanoidToeBone(animator, toeTransform))
+            {
+                return false;
+            }
+
+            if (!TryGetToeAxisAlignedToFoot(animator, toeTransform, property.FootFitProperty.AxisFlatten, out Vector3 axis, out float footToToeDistance))
+            {
+                axis = EstimateFootForwardFromRoot(animator, toeTransform);
+                footToToeDistance = toeTransform.parent != null ? toeTransform.localPosition.magnitude : 0.05f;
+            }
+
+            var footSettings = property.FootFitProperty;
+            float length = Mathf.Clamp(
+                footToToeDistance * footSettings.ToeFallbackLengthByFootToToe,
+                footSettings.ToeFallbackMinLength,
+                footSettings.ToeFallbackMaxLength);
+            float radius = Mathf.Clamp(
+                length * footSettings.ToeFallbackRadiusByLength,
+                footSettings.ToeFallbackMinRadius,
+                footSettings.ToeFallbackMaxRadius);
+
+            fitResult = new FitResult
+            {
+                LocalRotation = Quaternion.FromToRotation(Vector3.up, axis),
+                Direction = MagicaCapsuleCollider.Direction.Y,
+                Center = new Vector3(0.0f, length * 0.5f, 0.0f),
+                Length = length,
+                RadiusAtMin = radius,
+                RadiusAtMax = radius,
+                ReverseDirection = false,
+            };
 
             return true;
         }
@@ -299,7 +330,7 @@ namespace MagicaClothColliderBuilder
 
             flatPreferred.Normalize();
 
-            Vector3 blendedPreferred = Vector3.Slerp(preferredAxis, flatPreferred, 0.75f).normalized;
+            Vector3 blendedPreferred = Vector3.Slerp(preferredAxis, flatPreferred, job.Property.FootFitProperty.AxisFlatten).normalized;
 
             var candidates = new List<Vector3>
             {
@@ -325,7 +356,7 @@ namespace MagicaClothColliderBuilder
                 if (flatPrincipal.sqrMagnitude > 1.0e-8f)
                 {
                     candidates.Add(flatPrincipal.normalized);
-                    candidates.Add(Vector3.Slerp(principal, flatPrincipal.normalized, 0.65f).normalized);
+                    candidates.Add(Vector3.Slerp(principal, flatPrincipal.normalized, job.Property.FootFitProperty.AxisFlatten).normalized);
                 }
 
                 candidates.Add(principal);
@@ -387,7 +418,7 @@ namespace MagicaClothColliderBuilder
             return Percentile(values, 99.0f) - Percentile(values, 1.0f);
         }
 
-        private static bool TryGetToeAxisAlignedToFoot(Animator animator, Transform toeTransform, out Vector3 toeAxis, out float footToToeDistance)
+        private static bool TryGetToeAxisAlignedToFoot(Animator animator, Transform toeTransform, float axisFlatten, out Vector3 toeAxis, out float footToToeDistance)
         {
             toeAxis = Vector3.zero;
             footToToeDistance = 0.0f;
@@ -439,7 +470,7 @@ namespace MagicaClothColliderBuilder
 
             if (flatWorldAxis.sqrMagnitude > 1.0e-8f)
             {
-                worldAxis = Vector3.Slerp(worldAxis.normalized, flatWorldAxis.normalized, 0.75f);
+                worldAxis = Vector3.Slerp(worldAxis.normalized, flatWorldAxis.normalized, axisFlatten);
             }
 
             toeAxis = toeTransform.InverseTransformDirection(worldAxis.normalized);
