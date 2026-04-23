@@ -5,6 +5,23 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## [1.4.0] - 2026-04-23
+
+### Added
+- 足のコライダー生成機能を改修し、精度を大幅に向上
+- Foot / Toes設定タブを追加し、足とつま先のフィット調整をUIから変更できるように
+
+### Changed
+- 指のコライダー生成を強化
+- Toe fallbackのサイズと向きの計算をFitter側へ移動
+- Fitter周りをリファクタリング
+
+### Fixed
+- 頭のコライダーの向きが予期しない方向になる問題を修正
+
+### Removed
+- AccuratePercentileモードを廃止し、FastBoundsに一本化
+
 ## [1.3.0] - 2026-04-22
 
 ### 手のコライダー生成を強化
