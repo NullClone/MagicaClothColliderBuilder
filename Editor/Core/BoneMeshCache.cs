@@ -6,69 +6,47 @@ namespace MagicaClothColliderBuilder
 {
     public class BoneMeshCache
     {
-        // Fields
-
-        private int m_MeshVertexCount;
-        private int m_MeshTriangleCount;
-        private int m_MeshBoneCount;
-        private Matrix4x4[] m_MeshBindPoses;
-        private Transform[] m_MeshBones;
-        private BoneWeight[] m_MeshBoneWeights;
-        private Vector3[] m_MeshVertices;
-        private int[] m_MeshTriangles;
-        private int[] m_MeshVertexRendererIndices;
-        private int[] m_RendererBoneStartIndices;
-        private int[] m_RendererBoneCounts;
-        private bool[] m_TargetBones;
-        private bool[] m_TargetVertices;
-        private bool[] m_PassedVertices;
-        private bool[] m_ProcessedVertices;
-        private int[] m_RedirectIndices;
-        private int[] m_BoneIndices;
-        private int[][] m_BoneVertexCandidates;
-        private int[] m_VertexCandidateVisitStamps;
-        private int m_VertexCandidateVisitStamp;
-
-
         // Properties
 
-        public int MeshVertexCount => m_MeshVertexCount;
+        public int MeshVertexCount { get; private set; }
 
-        public int MeshTriangleCount => m_MeshTriangleCount;
+        public int MeshTriangleCount { get; private set; }
 
-        public int MeshBoneCount => m_MeshBoneCount;
+        public int MeshBoneCount { get; private set; }
 
-        public Matrix4x4[] MeshBindPoses => m_MeshBindPoses;
+        public Matrix4x4[] MeshBindPoses { get; private set; }
 
-        public Transform[] MeshBones => m_MeshBones;
+        public Transform[] MeshBones { get; private set; }
 
-        public BoneWeight[] MeshBoneWeights => m_MeshBoneWeights;
+        public BoneWeight[] MeshBoneWeights { get; private set; }
 
-        public Vector3[] MeshVertices => m_MeshVertices;
+        public Vector3[] MeshVertices { get; private set; }
 
-        public int[] MeshTriangles => m_MeshTriangles;
+        public int[] MeshTriangles { get; private set; }
 
-        public int[] MeshVertexRendererIndices => m_MeshVertexRendererIndices;
+        public int[] MeshVertexRendererIndices { get; private set; }
 
-        public int[] RendererBoneStartIndices => m_RendererBoneStartIndices;
+        public int[] RendererBoneStartIndices { get; private set; }
 
-        public int[] RendererBoneCounts => m_RendererBoneCounts;
+        public int[] RendererBoneCounts { get; private set; }
 
-        public bool[] TargetBones => m_TargetBones;
+        public bool[] TargetBones { get; private set; }
 
-        public bool[] TargetVertices => m_TargetVertices;
+        public bool[] TargetVertices { get; private set; }
 
-        public bool[] PassedVertices => m_PassedVertices;
+        public bool[] PassedVertices { get; private set; }
 
-        public bool[] ProcessedVertices => m_ProcessedVertices;
+        public bool[] ProcessedVertices { get; private set; }
 
-        public int[] RedirectIndices => m_RedirectIndices;
+        public int[] RedirectIndices { get; private set; }
 
-        public int[] BoneIndices => m_BoneIndices;
+        public int[] BoneIndices { get; private set; }
 
-        public int[][] BoneVertexCandidates => m_BoneVertexCandidates;
+        public int[][] BoneVertexCandidates { get; private set; }
 
-        public int[] VertexCandidateVisitStamps => m_VertexCandidateVisitStamps;
+        public int[] VertexCandidateVisitStamps { get; private set; }
+
+        private int VertexCandidateVisitStamp { get; set; }
 
 
         // Methods
@@ -77,9 +55,9 @@ namespace MagicaClothColliderBuilder
         {
             if (gameObject == null) return;
 
-            m_MeshVertexCount = 0;
-            m_MeshTriangleCount = 0;
-            m_MeshBoneCount = 0;
+            MeshVertexCount = 0;
+            MeshTriangleCount = 0;
+            MeshBoneCount = 0;
 
             SkinnedMeshRenderer[] skinnedMeshRenderers;
 
@@ -118,32 +96,32 @@ namespace MagicaClothColliderBuilder
 
                     if (boneWeights == null || boneWeights.Length == 0) continue;
 
-                    m_MeshBoneCount += skinnedMeshRenderer.bones.Length;
-                    m_MeshVertexCount += sharedMesh.vertexCount;
-                    m_MeshTriangleCount += sharedMesh.triangles.Length;
+                    MeshBoneCount += skinnedMeshRenderer.bones.Length;
+                    MeshVertexCount += sharedMesh.vertexCount;
+                    MeshTriangleCount += sharedMesh.triangles.Length;
                 }
             }
 
-            m_MeshBones = new Transform[m_MeshBoneCount];
-            m_MeshBindPoses = new Matrix4x4[m_MeshBoneCount];
-            m_MeshBoneWeights = new BoneWeight[m_MeshVertexCount];
-            m_MeshVertices = new Vector3[m_MeshVertexCount];
-            m_MeshTriangles = new int[m_MeshTriangleCount];
-            m_MeshVertexRendererIndices = new int[m_MeshVertexCount];
-            m_RendererBoneStartIndices = new int[skinnedMeshRenderers.Length];
-            m_RendererBoneCounts = new int[skinnedMeshRenderers.Length];
-            m_TargetBones = new bool[m_MeshBoneCount];
-            m_TargetVertices = new bool[m_MeshVertexCount];
-            m_PassedVertices = new bool[m_MeshVertexCount];
-            m_ProcessedVertices = new bool[m_MeshVertexCount];
-            m_RedirectIndices = new int[m_MeshVertexCount];
-            m_BoneIndices = new int[m_MeshVertexCount];
-            m_VertexCandidateVisitStamps = new int[m_MeshVertexCount];
-            m_VertexCandidateVisitStamp = 0;
+            MeshBones = new Transform[MeshBoneCount];
+            MeshBindPoses = new Matrix4x4[MeshBoneCount];
+            MeshBoneWeights = new BoneWeight[MeshVertexCount];
+            MeshVertices = new Vector3[MeshVertexCount];
+            MeshTriangles = new int[MeshTriangleCount];
+            MeshVertexRendererIndices = new int[MeshVertexCount];
+            RendererBoneStartIndices = new int[skinnedMeshRenderers.Length];
+            RendererBoneCounts = new int[skinnedMeshRenderers.Length];
+            TargetBones = new bool[MeshBoneCount];
+            TargetVertices = new bool[MeshVertexCount];
+            PassedVertices = new bool[MeshVertexCount];
+            ProcessedVertices = new bool[MeshVertexCount];
+            RedirectIndices = new int[MeshVertexCount];
+            BoneIndices = new int[MeshVertexCount];
+            VertexCandidateVisitStamps = new int[MeshVertexCount];
+            VertexCandidateVisitStamp = 0;
 
-            for (int i = 0; i < m_BoneIndices.Length; ++i)
+            for (int i = 0; i < BoneIndices.Length; ++i)
             {
-                m_BoneIndices[i] = -1;
+                BoneIndices[i] = -1;
             }
 
             int meshRendererBoneIndex = 0;
@@ -167,19 +145,19 @@ namespace MagicaClothColliderBuilder
 
                     if (boneWeights == null || boneWeights.Length == 0) continue;
 
-                    m_RendererBoneStartIndices[meshRendererIndex] = meshRendererBoneIndex;
-                    m_RendererBoneCounts[meshRendererIndex] = bones.Length;
+                    RendererBoneStartIndices[meshRendererIndex] = meshRendererBoneIndex;
+                    RendererBoneCounts[meshRendererIndex] = bones.Length;
 
                     for (int i = 0; i < bones.Length; ++i)
                     {
-                        m_MeshBones[meshRendererBoneIndex + i] = bones[i];
-                        m_MeshBindPoses[meshRendererBoneIndex + i] = bindPoses != null && i < bindPoses.Length ? bindPoses[i] : Matrix4x4.identity;
+                        MeshBones[meshRendererBoneIndex + i] = bones[i];
+                        MeshBindPoses[meshRendererBoneIndex + i] = bindPoses != null && i < bindPoses.Length ? bindPoses[i] : Matrix4x4.identity;
                     }
 
                     for (int i = 0; i < vertices.Length; ++i)
                     {
-                        m_MeshVertices[meshRendererVertexIndex + i] = vertices[i];
-                        m_MeshVertexRendererIndices[meshRendererVertexIndex + i] = meshRendererIndex;
+                        MeshVertices[meshRendererVertexIndex + i] = vertices[i];
+                        MeshVertexRendererIndices[meshRendererVertexIndex + i] = meshRendererIndex;
 
                         var boneWeight = boneWeights[i];
 
@@ -188,12 +166,12 @@ namespace MagicaClothColliderBuilder
                         if (boneWeight.boneIndex2 >= 0) boneWeight.boneIndex2 += meshRendererBoneIndex;
                         if (boneWeight.boneIndex3 >= 0) boneWeight.boneIndex3 += meshRendererBoneIndex;
 
-                        m_MeshBoneWeights[meshRendererVertexIndex + i] = boneWeight;
+                        MeshBoneWeights[meshRendererVertexIndex + i] = boneWeight;
                     }
 
                     for (int i = 0; i < triangles.Length; ++i)
                     {
-                        m_MeshTriangles[meshRendererTriangleIndex + i] = triangles[i] + meshRendererVertexIndex;
+                        MeshTriangles[meshRendererTriangleIndex + i] = triangles[i] + meshRendererVertexIndex;
                     }
 
                     meshRendererBoneIndex += bones.Length;
@@ -209,47 +187,47 @@ namespace MagicaClothColliderBuilder
 
         public void Clear()
         {
-            Array.Clear(m_TargetBones, 0, m_TargetBones.Length);
-            Array.Clear(m_TargetVertices, 0, m_TargetVertices.Length);
-            Array.Clear(m_PassedVertices, 0, m_PassedVertices.Length);
-            Array.Clear(m_ProcessedVertices, 0, m_ProcessedVertices.Length);
+            Array.Clear(TargetBones, 0, TargetBones.Length);
+            Array.Clear(TargetVertices, 0, TargetVertices.Length);
+            Array.Clear(PassedVertices, 0, PassedVertices.Length);
+            Array.Clear(ProcessedVertices, 0, ProcessedVertices.Length);
 
-            for (int i = 0; i < m_RedirectIndices.Length; ++i)
+            for (int i = 0; i < RedirectIndices.Length; ++i)
             {
-                m_RedirectIndices[i] = -1;
+                RedirectIndices[i] = -1;
             }
 
-            for (int i = 0; i < m_BoneIndices.Length; ++i)
+            for (int i = 0; i < BoneIndices.Length; ++i)
             {
-                m_BoneIndices[i] = -1;
+                BoneIndices[i] = -1;
             }
         }
 
         public int NextVertexCandidateVisitStamp()
         {
-            ++m_VertexCandidateVisitStamp;
+            ++VertexCandidateVisitStamp;
 
-            if (m_VertexCandidateVisitStamp == int.MaxValue)
+            if (VertexCandidateVisitStamp == int.MaxValue)
             {
-                Array.Clear(m_VertexCandidateVisitStamps, 0, m_VertexCandidateVisitStamps.Length);
-                m_VertexCandidateVisitStamp = 1;
+                Array.Clear(VertexCandidateVisitStamps, 0, VertexCandidateVisitStamps.Length);
+                VertexCandidateVisitStamp = 1;
             }
 
-            return m_VertexCandidateVisitStamp;
+            return VertexCandidateVisitStamp;
         }
 
 
         private void BuildBoneVertexCandidates()
         {
-            m_BoneVertexCandidates = new int[m_MeshBoneCount][];
+            BoneVertexCandidates = new int[MeshBoneCount][];
 
-            if (m_MeshBoneCount == 0 || m_MeshVertexCount == 0) return;
+            if (MeshBoneCount == 0 || MeshVertexCount == 0) return;
 
-            var candidateCounts = new int[m_MeshBoneCount];
+            var candidateCounts = new int[MeshBoneCount];
 
-            for (int i = 0; i < m_MeshBoneWeights.Length; ++i)
+            for (int i = 0; i < MeshBoneWeights.Length; ++i)
             {
-                var boneWeight = m_MeshBoneWeights[i];
+                var boneWeight = MeshBoneWeights[i];
 
                 CountCandidate(candidateCounts, boneWeight.boneIndex0, boneWeight.weight0, -1, -1, -1);
                 CountCandidate(candidateCounts, boneWeight.boneIndex1, boneWeight.weight1, boneWeight.boneIndex0, -1, -1);
@@ -259,14 +237,14 @@ namespace MagicaClothColliderBuilder
 
             for (int i = 0; i < candidateCounts.Length; ++i)
             {
-                m_BoneVertexCandidates[i] = new int[candidateCounts[i]];
+                BoneVertexCandidates[i] = new int[candidateCounts[i]];
             }
 
             Array.Clear(candidateCounts, 0, candidateCounts.Length);
 
-            for (int i = 0; i < m_MeshBoneWeights.Length; ++i)
+            for (int i = 0; i < MeshBoneWeights.Length; ++i)
             {
-                var boneWeight = m_MeshBoneWeights[i];
+                var boneWeight = MeshBoneWeights[i];
 
                 AddCandidate(candidateCounts, boneWeight.boneIndex0, boneWeight.weight0, i, -1, -1, -1);
                 AddCandidate(candidateCounts, boneWeight.boneIndex1, boneWeight.weight1, i, boneWeight.boneIndex0, -1, -1);
@@ -278,7 +256,7 @@ namespace MagicaClothColliderBuilder
         private void CountCandidate(int[] candidateCounts, int boneIndex, float weight, int duplicate0, int duplicate1, int duplicate2)
         {
             if (boneIndex >= 0 &&
-                   boneIndex < m_MeshBoneCount &&
+                   boneIndex < MeshBoneCount &&
                    weight > 0.0f &&
                    boneIndex != duplicate0 &&
                    boneIndex != duplicate1 &&
@@ -291,13 +269,13 @@ namespace MagicaClothColliderBuilder
         private void AddCandidate(int[] candidateCounts, int boneIndex, float weight, int vertexIndex, int duplicate0, int duplicate1, int duplicate2)
         {
             if (boneIndex >= 0 &&
-                   boneIndex < m_MeshBoneCount &&
+                   boneIndex < MeshBoneCount &&
                    weight > 0.0f &&
                    boneIndex != duplicate0 &&
                    boneIndex != duplicate1 &&
                    boneIndex != duplicate2)
             {
-                m_BoneVertexCandidates[boneIndex][candidateCounts[boneIndex]] = vertexIndex;
+                BoneVertexCandidates[boneIndex][candidateCounts[boneIndex]] = vertexIndex;
                 ++candidateCounts[boneIndex];
             }
         }

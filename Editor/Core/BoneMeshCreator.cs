@@ -5,20 +5,17 @@ namespace MagicaClothColliderBuilder
 {
     public class BoneMeshCreator
     {
-        // Fields
-
-        private GameObject m_BoneGameObject;
-        private SplitProperty m_SplitProperty;
-        private BoneMeshCache m_BoneMeshCache;
-        private Vector3[] m_BoneVertices;
-        private int[] m_BoneTriangles;
-
-
         // Properties
 
-        public Vector3[] BoneVertices => m_BoneVertices;
+        public Vector3[] BoneVertices { get; private set; }
 
-        public int[] BoneTriangles => m_BoneTriangles;
+        public int[] BoneTriangles { get; private set; }
+
+        private GameObject BoneGameObject { get; set; }
+
+        private SplitProperty SplitProperty { get; set; }
+
+        private BoneMeshCache BoneMeshCache { get; set; }
 
 
         // Methods
@@ -34,15 +31,15 @@ namespace MagicaClothColliderBuilder
                 return false;
             }
 
-            m_BoneGameObject = boneGameObject;
-            m_SplitProperty = splitProperty;
-            m_BoneMeshCache = boneMeshCache;
+            BoneGameObject = boneGameObject;
+            SplitProperty = splitProperty;
+            BoneMeshCache = boneMeshCache;
 
-            RebuildTargetBones(m_BoneGameObject.transform);
+            RebuildTargetBones(BoneGameObject.transform);
 
             if (!PopulateTargetVertices()) return false;
 
-            if (m_SplitProperty.BoneTriangleExtent != BoneTriangleExtent.Disable)
+            if (SplitProperty.BoneTriangleExtent != BoneTriangleExtent.Disable)
             {
                 ExtendTargetVerticesByTriangles();
             }
@@ -56,10 +53,10 @@ namespace MagicaClothColliderBuilder
 
         private void RebuildTargetBones(Transform transform)
         {
-            var meshBones = m_BoneMeshCache.MeshBones;
-            var targetBones = m_BoneMeshCache.TargetBones;
+            var meshBones = BoneMeshCache.MeshBones;
+            var targetBones = BoneMeshCache.TargetBones;
 
-            for (int i = 0; i < m_BoneMeshCache.MeshBoneCount; ++i)
+            for (int i = 0; i < BoneMeshCache.MeshBoneCount; ++i)
             {
                 var currentBone = meshBones[i];
 
@@ -75,22 +72,22 @@ namespace MagicaClothColliderBuilder
         private bool PopulateTargetVertices()
         {
             int passedVertexCount = 0;
-            var targetVertex = m_BoneMeshCache.TargetVertices;
-            var targetBones = m_BoneMeshCache.TargetBones;
-            var boneIndices = m_BoneMeshCache.BoneIndices;
-            var boneWeights = m_BoneMeshCache.MeshBoneWeights;
-            var processedVertices = m_BoneMeshCache.ProcessedVertices;
-            var boneVertexCandidates = m_BoneMeshCache.BoneVertexCandidates;
+            var targetVertex = BoneMeshCache.TargetVertices;
+            var targetBones = BoneMeshCache.TargetBones;
+            var boneIndices = BoneMeshCache.BoneIndices;
+            var boneWeights = BoneMeshCache.MeshBoneWeights;
+            var processedVertices = BoneMeshCache.ProcessedVertices;
+            var boneVertexCandidates = BoneMeshCache.BoneVertexCandidates;
             var boneWeightArray = new float[4];
             var boneIndexArray = new int[4];
-            int influenceLimit = m_SplitProperty.BoneWeightType == BoneWeightType.Bone2 ? 2 : 4;
+            int influenceLimit = SplitProperty.BoneWeightType == BoneWeightType.Bone2 ? 2 : 4;
             var weightThresholds = new float[5]
             {
                 0f,
                 0f,
-                m_SplitProperty.BoneWeight2 * 0.01f,
-                m_SplitProperty.BoneWeight3 * 0.01f,
-                m_SplitProperty.BoneWeight4 * 0.01f,
+                SplitProperty.BoneWeight2 * 0.01f,
+                SplitProperty.BoneWeight3 * 0.01f,
+                SplitProperty.BoneWeight4 * 0.01f,
             };
 
             if (boneVertexCandidates == null || boneVertexCandidates.Length == 0)
@@ -106,8 +103,8 @@ namespace MagicaClothColliderBuilder
                     weightThresholds);
             }
 
-            int visitStamp = m_BoneMeshCache.NextVertexCandidateVisitStamp();
-            var visitStamps = m_BoneMeshCache.VertexCandidateVisitStamps;
+            int visitStamp = BoneMeshCache.NextVertexCandidateVisitStamp();
+            var visitStamps = BoneMeshCache.VertexCandidateVisitStamps;
 
             for (int boneIndex = 0; boneIndex < targetBones.Length; ++boneIndex)
             {
@@ -121,7 +118,7 @@ namespace MagicaClothColliderBuilder
                 {
                     int vertexIndex = candidates[i];
 
-                    if (vertexIndex < 0 || vertexIndex >= m_BoneMeshCache.MeshVertexCount) continue;
+                    if (vertexIndex < 0 || vertexIndex >= BoneMeshCache.MeshVertexCount) continue;
 
                     if (visitStamps[vertexIndex] == visitStamp) continue;
 
@@ -150,7 +147,7 @@ namespace MagicaClothColliderBuilder
         {
             int passedVertexCount = 0;
 
-            for (int i = 0; i < m_BoneMeshCache.MeshVertexCount; ++i)
+            for (int i = 0; i < BoneMeshCache.MeshVertexCount; ++i)
             {
                 if (TryPopulateTargetVertex(
                     i,
@@ -196,7 +193,7 @@ namespace MagicaClothColliderBuilder
 
         private int ResolveTargetBoneIndex(float[] boneWeightArray, int[] boneIndexArray, int influenceLimit, float[] weightThresholds)
         {
-            var targetBones = m_BoneMeshCache.TargetBones;
+            var targetBones = BoneMeshCache.TargetBones;
             int boneCount = 0;
 
             for (int n = 0; n < influenceLimit; ++n)
@@ -217,7 +214,7 @@ namespace MagicaClothColliderBuilder
                 }
             }
 
-            if (!m_SplitProperty.GreaterBoneWeight) return -1;
+            if (!SplitProperty.GreaterBoneWeight) return -1;
 
             return ResolveDominantTargetBoneIndex(boneWeightArray, boneIndexArray, influenceLimit, targetBones);
         }
@@ -259,10 +256,10 @@ namespace MagicaClothColliderBuilder
 
             if (extentVertexCount == 0) return;
 
-            var targetVertex = m_BoneMeshCache.TargetVertices;
-            var boneIndices = m_BoneMeshCache.BoneIndices;
-            var processedVertices = m_BoneMeshCache.ProcessedVertices;
-            var meshTriangles = m_BoneMeshCache.MeshTriangles;
+            var targetVertex = BoneMeshCache.TargetVertices;
+            var boneIndices = BoneMeshCache.BoneIndices;
+            var processedVertices = BoneMeshCache.ProcessedVertices;
+            var meshTriangles = BoneMeshCache.MeshTriangles;
 
             for (int i = 0; i + 2 < meshTriangles.Length; i += 3)
             {
@@ -290,7 +287,7 @@ namespace MagicaClothColliderBuilder
                 targetVertex[index2] = true;
             }
 
-            for (int i = 0; i < m_BoneMeshCache.MeshVertexCount; ++i)
+            for (int i = 0; i < BoneMeshCache.MeshVertexCount; ++i)
             {
                 processedVertices[i] |= targetVertex[i];
             }
@@ -298,8 +295,8 @@ namespace MagicaClothColliderBuilder
 
         private int GetExtentVertexCount()
         {
-            if (m_SplitProperty.BoneTriangleExtent == BoneTriangleExtent.Vertex1) return 1;
-            if (m_SplitProperty.BoneTriangleExtent == BoneTriangleExtent.Vertex2) return 2;
+            if (SplitProperty.BoneTriangleExtent == BoneTriangleExtent.Vertex1) return 1;
+            if (SplitProperty.BoneTriangleExtent == BoneTriangleExtent.Vertex2) return 2;
 
             return 0;
         }
@@ -326,9 +323,9 @@ namespace MagicaClothColliderBuilder
 
         private bool TryCollectPassedTriangles(out List<int> passedTriangles)
         {
-            var targetVertex = m_BoneMeshCache.TargetVertices;
-            var passedVertex = m_BoneMeshCache.PassedVertices;
-            var meshTriangles = m_BoneMeshCache.MeshTriangles;
+            var targetVertex = BoneMeshCache.TargetVertices;
+            var passedVertex = BoneMeshCache.PassedVertices;
+            var meshTriangles = BoneMeshCache.MeshTriangles;
             passedTriangles = new List<int>();
 
             for (int i = 0; i + 2 < meshTriangles.Length; i += 3)
@@ -356,7 +353,7 @@ namespace MagicaClothColliderBuilder
         {
             bool hasTargetVertices = false;
 
-            for (int i = 0; i < m_BoneMeshCache.MeshVertexCount; i++)
+            for (int i = 0; i < BoneMeshCache.MeshVertexCount; i++)
             {
                 if (!targetVertex[i]) continue;
 
@@ -369,11 +366,11 @@ namespace MagicaClothColliderBuilder
 
         private void RebuildLocalMesh(List<int> passedTriangles)
         {
-            var passedVertex = m_BoneMeshCache.PassedVertices;
-            var boneIndices = m_BoneMeshCache.BoneIndices;
-            var redirectIndex = m_BoneMeshCache.RedirectIndices;
-            var meshBindPoses = m_BoneMeshCache.MeshBindPoses;
-            var meshVertices = m_BoneMeshCache.MeshVertices;
+            var passedVertex = BoneMeshCache.PassedVertices;
+            var boneIndices = BoneMeshCache.BoneIndices;
+            var redirectIndex = BoneMeshCache.RedirectIndices;
+            var meshBindPoses = BoneMeshCache.MeshBindPoses;
+            var meshVertices = BoneMeshCache.MeshVertices;
 
             for (int i = 0; i < redirectIndex.Length; ++i)
             {
@@ -382,7 +379,7 @@ namespace MagicaClothColliderBuilder
 
             int remakeVertexCount = 0;
 
-            for (int i = 0; i < m_BoneMeshCache.MeshVertexCount; ++i)
+            for (int i = 0; i < BoneMeshCache.MeshVertexCount; ++i)
             {
                 if (!passedVertex[i]) continue;
 
@@ -408,7 +405,7 @@ namespace MagicaClothColliderBuilder
 
             var remakeVertices = new Vector3[remakeVertexCount];
 
-            for (int i = 0, index = 0; i < m_BoneMeshCache.MeshVertexCount; ++i)
+            for (int i = 0, index = 0; i < BoneMeshCache.MeshVertexCount; ++i)
             {
                 if (!passedVertex[i]) continue;
 
@@ -438,16 +435,16 @@ namespace MagicaClothColliderBuilder
                 remappedTriangles.Add(index2);
             }
 
-            m_BoneVertices = remakeVertices;
-            m_BoneTriangles = remappedTriangles.ToArray();
+            BoneVertices = remakeVertices;
+            BoneTriangles = remappedTriangles.ToArray();
         }
 
         private int ResolveTargetLocalBoneIndex(int vertexIndex, int fallbackBoneIndex)
         {
-            var rendererIndices = m_BoneMeshCache.MeshVertexRendererIndices;
-            var rendererBoneStarts = m_BoneMeshCache.RendererBoneStartIndices;
-            var rendererBoneCounts = m_BoneMeshCache.RendererBoneCounts;
-            var meshBones = m_BoneMeshCache.MeshBones;
+            var rendererIndices = BoneMeshCache.MeshVertexRendererIndices;
+            var rendererBoneStarts = BoneMeshCache.RendererBoneStartIndices;
+            var rendererBoneCounts = BoneMeshCache.RendererBoneCounts;
+            var meshBones = BoneMeshCache.MeshBones;
 
             if (rendererIndices == null || rendererBoneStarts == null || rendererBoneCounts == null)
             {
@@ -463,7 +460,7 @@ namespace MagicaClothColliderBuilder
 
             int start = rendererBoneStarts[rendererIndex];
             int end = Mathf.Min(start + rendererBoneCounts[rendererIndex], meshBones.Length);
-            var targetTransform = m_BoneGameObject.transform;
+            var targetTransform = BoneGameObject.transform;
 
             for (int i = start; i < end; ++i)
             {
