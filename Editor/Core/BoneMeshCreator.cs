@@ -369,8 +369,10 @@ namespace MagicaClothColliderBuilder
             var passedVertex = BoneMeshCache.PassedVertices;
             var boneIndices = BoneMeshCache.BoneIndices;
             var redirectIndex = BoneMeshCache.RedirectIndices;
-            var meshBindPoses = BoneMeshCache.MeshBindPoses;
             var meshVertices = BoneMeshCache.MeshVertices;
+            var rendererIndices = BoneMeshCache.MeshVertexRendererIndices;
+            var rendererTransforms = BoneMeshCache.RendererTransforms;
+            var targetTransform = BoneGameObject.transform;
 
             for (int i = 0; i < redirectIndex.Length; ++i)
             {
@@ -385,7 +387,7 @@ namespace MagicaClothColliderBuilder
 
                 int boneIndex = boneIndices[i];
 
-                if (boneIndex < 0 || boneIndex >= meshBindPoses.Length)
+                if (boneIndex < 0 || boneIndex >= BoneMeshCache.MeshBoneCount)
                 {
                     passedVertex[i] = false;
                     continue;
@@ -393,7 +395,15 @@ namespace MagicaClothColliderBuilder
 
                 int targetLocalBoneIndex = ResolveTargetLocalBoneIndex(i, boneIndex);
 
-                if (targetLocalBoneIndex < 0 || targetLocalBoneIndex >= meshBindPoses.Length)
+                if (targetLocalBoneIndex < 0 || targetLocalBoneIndex >= BoneMeshCache.MeshBoneCount)
+                {
+                    passedVertex[i] = false;
+                    continue;
+                }
+
+                int rendererIndex = rendererIndices[i];
+
+                if (rendererIndex < 0 || rendererTransforms == null || rendererIndex >= rendererTransforms.Length || rendererTransforms[rendererIndex] == null)
                 {
                     passedVertex[i] = false;
                     continue;
@@ -411,10 +421,17 @@ namespace MagicaClothColliderBuilder
 
                 int boneIndex = boneIndices[i];
 
-                if (boneIndex < 0 || boneIndex >= meshBindPoses.Length) continue;
+                if (boneIndex < 0 || boneIndex >= BoneMeshCache.MeshBoneCount) continue;
 
-                var matrix = meshBindPoses[boneIndex];
-                remakeVertices[index] = matrix.MultiplyPoint(meshVertices[i]);
+                int rendererIndex = rendererIndices[i];
+
+                if (rendererIndex < 0 || rendererTransforms == null || rendererIndex >= rendererTransforms.Length || rendererTransforms[rendererIndex] == null)
+                {
+                    continue;
+                }
+
+                Vector3 worldVertex = rendererTransforms[rendererIndex].TransformPoint(meshVertices[i]);
+                remakeVertices[index] = targetTransform.InverseTransformPoint(worldVertex);
                 redirectIndex[i] = index;
 
                 ++index;
