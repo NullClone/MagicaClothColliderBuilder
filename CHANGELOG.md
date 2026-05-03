@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## [1.5.0] - 2026-05-03
+
+### Added
+- 現在のポーズに対しても処理できるようになりました（以前はバインドポーズのみ）
+- 子ボーンのウェイトに対して閾値を設けるようにしたことで、安定性が向上しました
+
+### Changed
+- 腰のコライダー生成機能を改修し、精度を大幅に向上
+- コードの可読性を向上
+
 ## [1.4.0] - 2026-04-23
 
 ### Added
