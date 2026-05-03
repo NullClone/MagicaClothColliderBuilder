@@ -85,13 +85,11 @@ namespace MagicaClothColliderBuilder
             maxRadius *= bodySettings.BendSafeRadiusScale;
             radius = Mathf.Clamp(radius, bodySettings.MinRadius, maxRadius);
 
-            var center = ResolveBendSafeCenter(rotated, length, radius, bodySettings);
-
             result = new FitResult
             {
                 LocalRotation = localRotation,
                 Direction = MagicaCapsuleCollider.Direction.Y,
-                Center = center,
+                Center = Vector3.zero,
                 Length = length,
                 RadiusAtMin = radius,
                 RadiusAtMax = radius,
@@ -281,6 +279,7 @@ namespace MagicaClothColliderBuilder
             return Mathf.Max(settings.MinLength, safeLength);
         }
 
+        /*
         private static Vector3 ResolveBendSafeCenter(Vector3[] rotated, float length, float radius, BodyFitProperty settings)
         {
             if (rotated == null || rotated.Length == 0)
@@ -318,6 +317,7 @@ namespace MagicaClothColliderBuilder
 
             return rotatedCenter;
         }
+        */
 
         private static Vector3 GetHipsUp(Animator animator, Transform hipsTransform)
         {
