@@ -12,6 +12,7 @@ namespace MagicaClothColliderBuilder
         public int BoneWeight4 = 25;
         public bool GreaterBoneWeight = true;
         public BoneTriangleExtent BoneTriangleExtent = BoneTriangleExtent.Vertex2;
+        public int ChildBoneMinParentWeight = 15;
     }
 
     [Serializable]

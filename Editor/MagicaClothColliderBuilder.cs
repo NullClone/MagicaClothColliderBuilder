@@ -349,6 +349,7 @@ namespace MagicaClothColliderBuilder
                 split.BoneWeightType = (BoneWeightType)EditorGUILayout.EnumPopup("Bone Weight Type", split.BoneWeightType);
                 split.GreaterBoneWeight = EditorGUILayout.Toggle("Prefer Dominant Bone", split.GreaterBoneWeight);
                 split.BoneTriangleExtent = (BoneTriangleExtent)EditorGUILayout.EnumPopup("Triangle Extent", split.BoneTriangleExtent);
+                split.ChildBoneMinParentWeight = EditorGUILayout.IntSlider("Child Bone Min Parent Weight", split.ChildBoneMinParentWeight, 0, 100);
                 split.BoneWeight2 = EditorGUILayout.IntSlider("Bone Weight 2", split.BoneWeight2, 0, 100);
 
                 if (split.BoneWeightType == BoneWeightType.Bone4)

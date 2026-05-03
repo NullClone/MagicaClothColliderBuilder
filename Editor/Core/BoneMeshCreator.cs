@@ -208,7 +208,10 @@ namespace MagicaClothColliderBuilder
             {
                 int boneIndex = boneIndexArray[n];
 
-                if (boneIndex >= 0 && targetBones[boneIndex] && boneWeightArray[n] > weightThresholds[boneCount])
+                if (boneIndex >= 0 &&
+                    targetBones[boneIndex] &&
+                    boneWeightArray[n] > weightThresholds[boneCount] &&
+                    PassesChildBoneParentWeightGate(boneIndex, boneWeightArray, boneIndexArray, influenceLimit))
                 {
                     return boneIndex;
                 }
@@ -219,7 +222,7 @@ namespace MagicaClothColliderBuilder
             return ResolveDominantTargetBoneIndex(boneWeightArray, boneIndexArray, influenceLimit, targetBones);
         }
 
-        private static int ResolveDominantTargetBoneIndex(float[] boneWeightArray, int[] boneIndexArray, int influenceLimit, bool[] targetBones)
+        private int ResolveDominantTargetBoneIndex(float[] boneWeightArray, int[] boneIndexArray, int influenceLimit, bool[] targetBones)
         {
             int dominantBoneIndex = -1;
             float dominantBoneWeight = 0.0f;
@@ -232,18 +235,21 @@ namespace MagicaClothColliderBuilder
                 if (boneIndex < 0) continue;
 
                 float currentWeight = boneWeightArray[n];
+                bool currentBoneIsTarget =
+                    targetBones[boneIndex] &&
+                    PassesChildBoneParentWeightGate(boneIndex, boneWeightArray, boneIndexArray, influenceLimit);
 
                 if (currentWeight > dominantBoneWeight)
                 {
                     dominantBoneIndex = boneIndex;
                     dominantBoneWeight = currentWeight;
-                    dominantBoneIsTarget = targetBones[dominantBoneIndex];
+                    dominantBoneIsTarget = currentBoneIsTarget;
                 }
                 else if (currentWeight == dominantBoneWeight && !dominantBoneIsTarget)
                 {
                     dominantBoneIndex = boneIndex;
                     dominantBoneWeight = currentWeight;
-                    dominantBoneIsTarget = targetBones[dominantBoneIndex];
+                    dominantBoneIsTarget = currentBoneIsTarget;
                 }
             }
 
@@ -278,13 +284,13 @@ namespace MagicaClothColliderBuilder
 
                 if (replicateBoneIndex < 0) continue;
 
-                if (boneIndices[index0] == -1) boneIndices[index0] = replicateBoneIndex;
-                if (boneIndices[index1] == -1) boneIndices[index1] = replicateBoneIndex;
-                if (boneIndices[index2] == -1) boneIndices[index2] = replicateBoneIndex;
+                TryExtendVertexByTriangle(index0, replicateBoneIndex, boneIndices);
+                TryExtendVertexByTriangle(index1, replicateBoneIndex, boneIndices);
+                TryExtendVertexByTriangle(index2, replicateBoneIndex, boneIndices);
 
-                targetVertex[index0] = true;
-                targetVertex[index1] = true;
-                targetVertex[index2] = true;
+                targetVertex[index0] |= boneIndices[index0] != -1;
+                targetVertex[index1] |= boneIndices[index1] != -1;
+                targetVertex[index2] |= boneIndices[index2] != -1;
             }
 
             for (int i = 0; i < BoneMeshCache.MeshVertexCount; ++i)
@@ -319,6 +325,113 @@ namespace MagicaClothColliderBuilder
             }
 
             return -1;
+        }
+
+        private void TryExtendVertexByTriangle(int vertexIndex, int replicateBoneIndex, int[] boneIndices)
+        {
+            if (boneIndices[vertexIndex] != -1)
+            {
+                return;
+            }
+
+            if (CanExtendVertexByTriangle(vertexIndex, replicateBoneIndex))
+            {
+                boneIndices[vertexIndex] = replicateBoneIndex;
+            }
+        }
+
+        private bool CanExtendVertexByTriangle(int vertexIndex, int replicateBoneIndex)
+        {
+            if (!IsChildBoneIndex(replicateBoneIndex))
+            {
+                return true;
+            }
+
+            return GetTargetBoneWeight(vertexIndex) >= GetChildBoneMinParentWeight();
+        }
+
+        private bool PassesChildBoneParentWeightGate(int targetBoneIndex, float[] boneWeightArray, int[] boneIndexArray, int influenceLimit)
+        {
+            if (!IsChildBoneIndex(targetBoneIndex))
+            {
+                return true;
+            }
+
+            float parentWeight = GetTargetBoneWeight(boneWeightArray, boneIndexArray, influenceLimit);
+
+            return parentWeight >= GetChildBoneMinParentWeight();
+        }
+
+        private bool IsChildBoneIndex(int boneIndex)
+        {
+            var meshBones = BoneMeshCache.MeshBones;
+
+            if (boneIndex < 0 || meshBones == null || boneIndex >= meshBones.Length)
+            {
+                return false;
+            }
+
+            var targetTransform = BoneGameObject.transform;
+            var bone = meshBones[boneIndex];
+
+            return bone != null && bone != targetTransform && bone.parent == targetTransform;
+        }
+
+        private float GetTargetBoneWeight(int vertexIndex)
+        {
+            var boneWeights = BoneMeshCache.MeshBoneWeights;
+
+            if (vertexIndex < 0 || boneWeights == null || vertexIndex >= boneWeights.Length)
+            {
+                return 0.0f;
+            }
+
+            var weight = boneWeights[vertexIndex];
+            var boneWeightArray = new[]
+            {
+                weight.weight0,
+                weight.weight1,
+                weight.weight2,
+                weight.weight3,
+            };
+            var boneIndexArray = new[]
+            {
+                weight.boneIndex0,
+                weight.boneIndex1,
+                weight.boneIndex2,
+                weight.boneIndex3,
+            };
+
+            return GetTargetBoneWeight(boneWeightArray, boneIndexArray, boneWeightArray.Length);
+        }
+
+        private float GetTargetBoneWeight(float[] boneWeightArray, int[] boneIndexArray, int influenceLimit)
+        {
+            var meshBones = BoneMeshCache.MeshBones;
+            var targetTransform = BoneGameObject.transform;
+            float targetWeight = 0.0f;
+
+            for (int i = 0; i < influenceLimit; ++i)
+            {
+                int boneIndex = boneIndexArray[i];
+
+                if (boneIndex < 0 || meshBones == null || boneIndex >= meshBones.Length)
+                {
+                    continue;
+                }
+
+                if (meshBones[boneIndex] == targetTransform)
+                {
+                    targetWeight = Mathf.Max(targetWeight, boneWeightArray[i]);
+                }
+            }
+
+            return targetWeight;
+        }
+
+        private float GetChildBoneMinParentWeight()
+        {
+            return Mathf.Clamp(SplitProperty.ChildBoneMinParentWeight, 0, 100) * 0.01f;
         }
 
         private bool TryCollectPassedTriangles(out List<int> passedTriangles)
