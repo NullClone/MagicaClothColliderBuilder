@@ -16,7 +16,9 @@ namespace MagicaClothColliderBuilder
 
         public Animator Animator { get; }
 
+
         private readonly BoneMeshCache m_BoneMeshCache;
+
 
         // Methods
 

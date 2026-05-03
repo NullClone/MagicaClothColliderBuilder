@@ -1,5 +1,5 @@
-using MagicaCloth2;
 using System.Collections.Generic;
+using MagicaCloth2;
 using UnityEngine;
 
 namespace MagicaClothColliderBuilder
@@ -14,26 +14,26 @@ namespace MagicaClothColliderBuilder
 
             if (jointDistance <= 1.0e-5f) return false;
 
-            FitMode fitMode = ResolveFitMode(job, boneRole);
+            var fitMode = ResolveFitMode(job, boneRole);
 
             float radiusPercentile = limbSettings.GetRadiusPercentile(fitMode);
             var fingerRotation = Quaternion.FromToRotation(Vector3.up, fingerAxis);
 
             if (!TryFitOnY(
-                job.Vertices,
-                Quaternion.Inverse(fingerRotation),
-                radiusPercentile,
-                jointDistance,
-                boneRole,
-                true,
-                true,
-                fitMode,
-                job.Property,
-                out Vector3 fingerCenter,
-                out float _,
-                out float fingerStartRadius,
-                out float fingerEndRadius,
-                out float _))
+                    job.Vertices,
+                    Quaternion.Inverse(fingerRotation),
+                    radiusPercentile,
+                    jointDistance,
+                    boneRole,
+                    true,
+                    true,
+                    fitMode,
+                    job.Property,
+                    out Vector3 fingerCenter,
+                    out float _,
+                    out float fingerStartRadius,
+                    out float fingerEndRadius,
+                    out float _))
             {
                 return false;
             }

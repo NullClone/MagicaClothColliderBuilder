@@ -1,5 +1,5 @@
-using MagicaCloth2;
 using System.Collections.Generic;
+using MagicaCloth2;
 using UnityEngine;
 
 namespace MagicaClothColliderBuilder
@@ -17,7 +17,7 @@ namespace MagicaClothColliderBuilder
             var boneTransform = job.TargetBone.transform;
             var bodySettings = job.Property.BodyFitProperty;
 
-            FitMode fitMode = ResolveFitMode(job, boneRole);
+            var fitMode = ResolveFitMode(job, boneRole);
 
             if (boneRole == BoneFitRole.Hips && TryFitHips(job, bodySettings, fitMode, out result))
             {
@@ -112,8 +112,8 @@ namespace MagicaClothColliderBuilder
             }
 
             var hipsTransform = job.TargetBone.transform;
-            Vector3 localHorizontal = GetHipsHorizontal(job.Animator, hipsTransform, settings);
-            Vector3 localUp = GetHipsUp(job.Animator, hipsTransform);
+            var localHorizontal = GetHipsHorizontal(job.Animator, hipsTransform, settings);
+            var localUp = GetHipsUp(job.Animator, hipsTransform);
 
             if (localUp.sqrMagnitude <= 1.0e-8f)
             {

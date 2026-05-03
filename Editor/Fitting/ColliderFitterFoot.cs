@@ -1,5 +1,5 @@
-using MagicaCloth2;
 using System.Collections.Generic;
+using MagicaCloth2;
 using UnityEngine;
 
 namespace MagicaClothColliderBuilder
@@ -36,7 +36,7 @@ namespace MagicaClothColliderBuilder
                 yValues.Add(rv.y);
             }
 
-            FitMode fitMode = ResolveFitMode(job, BoneFitRole.Default);
+            var fitMode = ResolveFitMode(job, BoneFitRole.Default);
             float lower = fitMode == FitMode.Inner ? 3.0f : 1.0f;
             float upper = fitMode == FitMode.Outer ? 100.0f : 99.0f;
             float minY = Percentile(yValues, lower);
@@ -116,8 +116,8 @@ namespace MagicaClothColliderBuilder
             }
 
             float radius = Percentile(radialValues, radiusPercentile) *
-                job.Property.LimbFitProperty.RadiusScale *
-                footSettings.GetFootRadiusScale(fitMode);
+                           job.Property.LimbFitProperty.RadiusScale *
+                           footSettings.GetFootRadiusScale(fitMode);
             float minRadius = Mathf.Max(job.Property.GenericFitProperty.MinRadius, footSettings.FootMinRadius);
             float maxRadius = Mathf.Max(
                 minRadius,
@@ -239,8 +239,8 @@ namespace MagicaClothColliderBuilder
             }
 
             float radius = Percentile(radialValues, radiusPercentile) *
-                job.Property.LimbFitProperty.RadiusScale *
-                footSettings.GetToeRadiusScale(fitMode);
+                           job.Property.LimbFitProperty.RadiusScale *
+                           footSettings.GetToeRadiusScale(fitMode);
             float minRadius = Mathf.Max(
                 job.Property.GenericFitProperty.MinRadius,
                 Mathf.Max(length * footSettings.ToeMinRadiusByLength, parentToeDistance * footSettings.ToeMinRadiusByFootToToe),

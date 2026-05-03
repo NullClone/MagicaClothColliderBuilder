@@ -256,11 +256,11 @@ namespace MagicaClothColliderBuilder
         private void CountCandidate(int[] candidateCounts, int boneIndex, float weight, int duplicate0, int duplicate1, int duplicate2)
         {
             if (boneIndex >= 0 &&
-                   boneIndex < MeshBoneCount &&
-                   weight > 0.0f &&
-                   boneIndex != duplicate0 &&
-                   boneIndex != duplicate1 &&
-                   boneIndex != duplicate2)
+                boneIndex < MeshBoneCount &&
+                weight > 0.0f &&
+                boneIndex != duplicate0 &&
+                boneIndex != duplicate1 &&
+                boneIndex != duplicate2)
             {
                 ++candidateCounts[boneIndex];
             }
@@ -269,11 +269,11 @@ namespace MagicaClothColliderBuilder
         private void AddCandidate(int[] candidateCounts, int boneIndex, float weight, int vertexIndex, int duplicate0, int duplicate1, int duplicate2)
         {
             if (boneIndex >= 0 &&
-                   boneIndex < MeshBoneCount &&
-                   weight > 0.0f &&
-                   boneIndex != duplicate0 &&
-                   boneIndex != duplicate1 &&
-                   boneIndex != duplicate2)
+                boneIndex < MeshBoneCount &&
+                weight > 0.0f &&
+                boneIndex != duplicate0 &&
+                boneIndex != duplicate1 &&
+                boneIndex != duplicate2)
             {
                 BoneVertexCandidates[boneIndex][candidateCounts[boneIndex]] = vertexIndex;
                 ++candidateCounts[boneIndex];

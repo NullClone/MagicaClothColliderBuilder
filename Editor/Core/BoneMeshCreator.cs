@@ -125,15 +125,15 @@ namespace MagicaClothColliderBuilder
                     visitStamps[vertexIndex] = visitStamp;
 
                     if (TryPopulateTargetVertex(
-                        vertexIndex,
-                        targetVertex,
-                        boneIndices,
-                        boneWeights,
-                        processedVertices,
-                        boneWeightArray,
-                        boneIndexArray,
-                        influenceLimit,
-                        weightThresholds))
+                            vertexIndex,
+                            targetVertex,
+                            boneIndices,
+                            boneWeights,
+                            processedVertices,
+                            boneWeightArray,
+                            boneIndexArray,
+                            influenceLimit,
+                            weightThresholds))
                     {
                         ++passedVertexCount;
                     }
@@ -150,15 +150,15 @@ namespace MagicaClothColliderBuilder
             for (int i = 0; i < BoneMeshCache.MeshVertexCount; ++i)
             {
                 if (TryPopulateTargetVertex(
-                    i,
-                    targetVertex,
-                    boneIndices,
-                    boneWeights,
-                    processedVertices,
-                    boneWeightArray,
-                    boneIndexArray,
-                    influenceLimit,
-                    weightThresholds))
+                        i,
+                        targetVertex,
+                        boneIndices,
+                        boneWeights,
+                        processedVertices,
+                        boneWeightArray,
+                        boneIndexArray,
+                        influenceLimit,
+                        weightThresholds))
                 {
                     ++passedVertexCount;
                 }

@@ -1,6 +1,6 @@
-using MagicaCloth2;
 using System;
 using System.Collections.Generic;
+using MagicaCloth2;
 using UnityEditor;
 using UnityEngine;
 
@@ -151,6 +151,7 @@ namespace MagicaClothColliderBuilder
 
             return generatedColliders;
         }
+
 
         private static string CreateGeneratedColliderName(Transform sourceBone, bool fallback)
         {

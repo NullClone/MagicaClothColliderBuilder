@@ -1,5 +1,5 @@
-using MagicaCloth2;
 using System.Collections.Generic;
+using MagicaCloth2;
 using UnityEngine;
 
 namespace MagicaClothColliderBuilder
@@ -12,31 +12,28 @@ namespace MagicaClothColliderBuilder
             var limbAxis = childHint.normalized;
             var jointDistance = Mathf.Max(childHint.magnitude, limbSettings.MinJointDistance);
 
-            if (jointDistance <= 1.0e-5f)
-            {
-                return false;
-            }
+            if (jointDistance <= 1.0e-5f) return false;
 
-            FitMode fitMode = ResolveFitMode(job, boneRole);
+            var fitMode = ResolveFitMode(job, boneRole);
             float radiusPercentile = limbSettings.GetRadiusPercentile(fitMode);
 
             var limbRotation = Quaternion.FromToRotation(Vector3.up, limbAxis);
 
             if (!TryFitOnY(
-                job.Vertices,
-                Quaternion.Inverse(limbRotation),
-                radiusPercentile,
-                jointDistance,
-                boneRole,
-                true,
-                false,
-                fitMode,
-                job.Property,
-                out Vector3 limbCenter,
-                out float _,
-                out float limbStartRadius,
-                out float limbEndRadius,
-                out float _))
+                    job.Vertices,
+                    Quaternion.Inverse(limbRotation),
+                    radiusPercentile,
+                    jointDistance,
+                    boneRole,
+                    true,
+                    false,
+                    fitMode,
+                    job.Property,
+                    out Vector3 limbCenter,
+                    out float _,
+                    out float limbStartRadius,
+                    out float limbEndRadius,
+                    out float _))
             {
                 return false;
             }
@@ -70,8 +67,8 @@ namespace MagicaClothColliderBuilder
             FitMode fitMode = ResolveFitMode(job, boneRole);
             float fitPercentile = job.Property.GenericFitProperty.GetFitPercentile(boneRole, fitMode);
             var axisCandidates = hasChildHint && childHint.sqrMagnitude > 1.0e-8f && !IsBodyRole(boneRole)
-            ? BuildLimbAxes(vertices, childHint, hasParentHint, parentHint)
-            : BuildAxes(vertices, hasChildHint, childHint, hasParentHint, parentHint);
+                ? BuildLimbAxes(vertices, childHint, hasParentHint, parentHint)
+                : BuildAxes(vertices, hasChildHint, childHint, hasParentHint, parentHint);
 
             if (axisCandidates.Count == 0)
             {
@@ -109,20 +106,20 @@ namespace MagicaClothColliderBuilder
                 float childAlignment = hasChildHint ? Mathf.Abs(Vector3.Dot(axis, childHintNormalized)) : 0.0f;
 
                 if (!TryFitOnY(
-                    vertices,
-                    inverseRotation,
-                    fitPercentile,
-                    boneLengthHint,
-                    boneRole,
-                    boneRole == BoneFitRole.Neck,
-                    false,
-                    fitMode,
-                    job.Property,
-                    out Vector3 candidateCenter,
-                    out float candidateLength,
-                    out float candidateStartRadius,
-                    out float candidateEndRadius,
-                    out float candidateScore))
+                        vertices,
+                        inverseRotation,
+                        fitPercentile,
+                        boneLengthHint,
+                        boneRole,
+                        boneRole == BoneFitRole.Neck,
+                        false,
+                        fitMode,
+                        job.Property,
+                        out Vector3 candidateCenter,
+                        out float candidateLength,
+                        out float candidateStartRadius,
+                        out float candidateEndRadius,
+                        out float candidateScore))
                 {
                     continue;
                 }
@@ -211,6 +208,7 @@ namespace MagicaClothColliderBuilder
                     centerX = 0.0f;
                     centerZ = 0.0f;
                 }
+
                 centerY = length * 0.5f;
             }
             else
@@ -238,10 +236,7 @@ namespace MagicaClothColliderBuilder
             {
                 Vector3 v = rotated[i];
 
-                if (v.y < yLeakMin || v.y > yLeakMax)
-                {
-                    continue;
-                }
+                if (v.y < yLeakMin || v.y > yLeakMax) continue;
 
                 float dx = v.x - centerX;
                 float dz = v.z - centerZ;
@@ -301,6 +296,7 @@ namespace MagicaClothColliderBuilder
             }
 
             score = ScoreCapsule(rotated, minY, maxY, centerX, centerZ, length, startRadius, endRadius);
+
             return true;
         }
 

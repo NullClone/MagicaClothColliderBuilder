@@ -1,5 +1,5 @@
-using MagicaCloth2;
 using System.Collections.Generic;
+using MagicaCloth2;
 using UnityEngine;
 
 namespace MagicaClothColliderBuilder
