@@ -287,12 +287,22 @@ namespace MagicaClothColliderBuilder
                 BodyFitProperty body = m_Settings.BodyFitProperty;
                 GenerationProperty generation = m_Settings.GenerationProperty;
                 generation.DefaultFitMode = (FitMode)EditorGUILayout.EnumPopup("Fallback Fit Mode", generation.DefaultFitMode);
-                body.ProjectAxisToBodyUpPlane = EditorGUILayout.Toggle("Project Axis To Body-Up Plane", body.ProjectAxisToBodyUpPlane);
                 body.HipsProjectAxisToSpinePlane = EditorGUILayout.Toggle("Hips Project Axis To Spine Plane", body.HipsProjectAxisToSpinePlane);
                 body.HipsMaxLengthBySpineDistance = EditorGUILayout.Slider("Hips Max Length / Spine Distance", body.HipsMaxLengthBySpineDistance, 0.5f, 4.0f);
                 body.MaxRadiusByLengthRatio = EditorGUILayout.Slider("Max Radius / Length", body.MaxRadiusByLengthRatio, 0.2f, 1.0f);
                 body.BendSafeJointMargin = EditorGUILayout.Slider("Bend Safe Joint Margin", body.BendSafeJointMargin, 0f, 0.05f);
                 body.BendSafeCenterLimit = EditorGUILayout.Slider("Bend Safe Center Limit", body.BendSafeCenterLimit, 0f, 0.08f);
+
+                EditorGUILayout.Space();
+                EditorGUILayout.LabelField("Hips Fitting", EditorStyles.boldLabel);
+
+                body.HipsMinLengthByUpperLegDistance = EditorGUILayout.Slider("Min Length / Upper Legs", body.HipsMinLengthByUpperLegDistance, 0.5f, 2.0f);
+                body.HipsLengthPaddingBySpineDistance = EditorGUILayout.Slider("Length Padding / Spine", body.HipsLengthPaddingBySpineDistance, 0.0f, 0.6f);
+                body.HipsMinRadiusBySpineDistance = EditorGUILayout.Slider("Min Radius / Spine", body.HipsMinRadiusBySpineDistance, 0.0f, 0.8f);
+                body.HipsMaxRadiusByLengthRatio = EditorGUILayout.Slider("Hips Max Radius / Length", body.HipsMaxRadiusByLengthRatio, 0.2f, 1.2f);
+                body.HipsCenterLimit = EditorGUILayout.Slider("Hips Center Limit", body.HipsCenterLimit, 0.0f, 0.15f);
+                body.HipsLowerSampleBySpineDistance = EditorGUILayout.Slider("Lower Sample / Spine", body.HipsLowerSampleBySpineDistance, 0.0f, 1.0f);
+                body.HipsUpperSampleBySpineDistance = EditorGUILayout.Slider("Upper Sample / Spine", body.HipsUpperSampleBySpineDistance, 0.0f, 1.2f);
 
                 EditorGUILayout.Space();
                 EditorGUILayout.LabelField("Role Tuning", EditorStyles.boldLabel);

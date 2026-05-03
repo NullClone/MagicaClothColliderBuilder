@@ -68,6 +68,13 @@ namespace MagicaClothColliderBuilder
         public bool HipsProjectAxisToSpinePlane = true;
         public float HipsMaxLength = 0.22f;
         public float HipsMaxLengthBySpineDistance = 1.8f;
+        public float HipsMinLengthByUpperLegDistance = 1.10f;
+        public float HipsLengthPaddingBySpineDistance = 0.18f;
+        public float HipsMinRadiusBySpineDistance = 0.28f;
+        public float HipsMaxRadiusByLengthRatio = 0.85f;
+        public float HipsCenterLimit = 0.06f;
+        public float HipsLowerSampleBySpineDistance = 0.35f;
+        public float HipsUpperSampleBySpineDistance = 0.70f;
         public float BendSafeLengthScale = 1.35f;
         public float BendSafeJointMargin = 0.012f;
         public float BendSafeCenterLimit = 0.018f;

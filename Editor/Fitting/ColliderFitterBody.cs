@@ -19,39 +19,25 @@ namespace MagicaClothColliderBuilder
 
             FitMode fitMode = ResolveFitMode(job, boneRole);
 
-            var worldHorizontal = bodySettings.HorizontalAxis == BodyHorizontalAxis.RootForward
-                ? (boneTransform.root != null ? boneTransform.root.forward : Vector3.forward)
-                : (boneTransform.root != null ? boneTransform.root.right : Vector3.right);
-
-            var localHorizontal = boneTransform.InverseTransformDirection(worldHorizontal);
-
-            if (bodySettings.ProjectAxisToBodyUpPlane)
+            if (boneRole == BoneFitRole.Hips && TryFitHips(job, bodySettings, fitMode, out result))
             {
-                var bodyUp = GetBodyUp(job.Animator, boneTransform, boneRole);
-
-                if (bodyUp.sqrMagnitude > 1.0e-8f)
-                {
-                    localHorizontal = Vector3.ProjectOnPlane(localHorizontal, bodyUp);
-                }
+                return true;
             }
 
-            if (boneRole == BoneFitRole.Hips && bodySettings.HipsProjectAxisToSpinePlane)
-            {
-                var localSpineUp = GetHipsUp(job.Animator, boneTransform);
+            var localAxis = GetBodyUp(job.Animator, boneTransform, boneRole);
 
-                if (localSpineUp.sqrMagnitude > 1.0e-8f)
-                {
-                    localHorizontal = Vector3.ProjectOnPlane(localHorizontal, localSpineUp);
-                }
+            if (localAxis.sqrMagnitude <= 1.0e-8f)
+            {
+                localAxis = boneTransform.InverseTransformDirection(boneTransform.root != null ? boneTransform.root.up : Vector3.up);
             }
 
-            if (localHorizontal.sqrMagnitude <= 1.0e-8f)
+            if (localAxis.sqrMagnitude <= 1.0e-8f)
             {
-                localHorizontal = Vector3.right;
+                localAxis = Vector3.up;
             }
 
-            localHorizontal.Normalize();
-            var localRotation = Quaternion.FromToRotation(Vector3.up, localHorizontal);
+            localAxis.Normalize();
+            var localRotation = Quaternion.FromToRotation(Vector3.up, localAxis);
             var inverseRotation = Quaternion.Inverse(localRotation);
 
             var absYValues = new List<float>(vertices.Length);
@@ -116,6 +102,164 @@ namespace MagicaClothColliderBuilder
         }
 
 
+        private static bool TryFitHips(ColliderGenerationJob job, BodyFitProperty settings, FitMode fitMode, out FitResult result)
+        {
+            result = default;
+
+            if (job.Animator == null || job.TargetBone == null || job.Vertices == null || job.Vertices.Length < 4)
+            {
+                return false;
+            }
+
+            var hipsTransform = job.TargetBone.transform;
+            Vector3 localHorizontal = GetHipsHorizontal(job.Animator, hipsTransform, settings);
+            Vector3 localUp = GetHipsUp(job.Animator, hipsTransform);
+
+            if (localUp.sqrMagnitude <= 1.0e-8f)
+            {
+                localUp = hipsTransform.InverseTransformDirection(hipsTransform.root != null ? hipsTransform.root.up : Vector3.up);
+            }
+
+            if (settings.HipsProjectAxisToSpinePlane && localUp.sqrMagnitude > 1.0e-8f)
+            {
+                localHorizontal = Vector3.ProjectOnPlane(localHorizontal, localUp);
+            }
+
+            if (localHorizontal.sqrMagnitude <= 1.0e-8f)
+            {
+                return false;
+            }
+
+            localHorizontal.Normalize();
+
+            var localRotation = Quaternion.FromToRotation(Vector3.up, localHorizontal);
+            var inverseRotation = Quaternion.Inverse(localRotation);
+            var rotated = new Vector3[job.Vertices.Length];
+            var absYValues = new List<float>(job.Vertices.Length);
+            var sampleXValues = new List<float>(job.Vertices.Length);
+            var sampleYValues = new List<float>(job.Vertices.Length);
+            var sampleZValues = new List<float>(job.Vertices.Length);
+
+            Vector3 rotatedUp = inverseRotation * localUp.normalized;
+            float spineDistance = GetBodyJointDistance(job.Animator, hipsTransform, BoneFitRole.Hips);
+            float legDistance = GetUpperLegDistance(job.Animator, hipsTransform, localHorizontal);
+            bool hasVerticalBand = spineDistance > 1.0e-6f && rotatedUp.sqrMagnitude > 1.0e-8f;
+            float verticalMin = -spineDistance * settings.HipsLowerSampleBySpineDistance;
+            float verticalMax = spineDistance * settings.HipsUpperSampleBySpineDistance;
+
+            for (int i = 0; i < job.Vertices.Length; ++i)
+            {
+                Vector3 rv = inverseRotation * job.Vertices[i];
+                rotated[i] = rv;
+                absYValues.Add(Mathf.Abs(rv.y));
+
+                if (hasVerticalBand)
+                {
+                    float vertical = Vector3.Dot(rv, rotatedUp);
+
+                    if (vertical < verticalMin || vertical > verticalMax)
+                    {
+                        continue;
+                    }
+                }
+
+                sampleXValues.Add(rv.x);
+                sampleYValues.Add(rv.y);
+                sampleZValues.Add(rv.z);
+            }
+
+            if (sampleXValues.Count < 4)
+            {
+                for (int i = 0; i < rotated.Length; ++i)
+                {
+                    sampleXValues.Add(rotated[i].x);
+                    sampleYValues.Add(rotated[i].y);
+                    sampleZValues.Add(rotated[i].z);
+                }
+            }
+
+            float meshLength = Mathf.Max(settings.MinLength, Percentile(absYValues, settings.HipsLengthPercentile) * 2.0f);
+            float minLength = settings.MinLength;
+
+            if (legDistance > 1.0e-6f)
+            {
+                minLength = Mathf.Max(minLength, legDistance * settings.HipsMinLengthByUpperLegDistance);
+            }
+
+            if (spineDistance > 1.0e-6f)
+            {
+                minLength = Mathf.Max(minLength, spineDistance * 0.45f);
+                meshLength += spineDistance * settings.HipsLengthPaddingBySpineDistance;
+            }
+
+            float maxBySpine = spineDistance > 1.0e-6f
+                ? Mathf.Max(settings.MinLength, spineDistance * settings.HipsMaxLengthBySpineDistance)
+                : settings.HipsMaxLength;
+            float maxLength = Mathf.Max(minLength, Mathf.Min(settings.HipsMaxLength, maxBySpine));
+            float length = Mathf.Clamp(Mathf.Max(meshLength, minLength), minLength, maxLength);
+            float centerLimit = Mathf.Max(0.0f, settings.HipsCenterLimit);
+            float centerX = Mathf.Clamp(Percentile(sampleXValues, 50.0f), -centerLimit, centerLimit);
+            float centerY = Mathf.Clamp(Percentile(sampleYValues, 50.0f), length * -0.18f, length * 0.18f);
+            float centerZ = Mathf.Clamp(Percentile(sampleZValues, 50.0f), -centerLimit, centerLimit);
+            float halfLength = length * 0.5f;
+            float radiusPercentile = settings.GetRadiusPercentile(fitMode);
+            var radiusValues = new List<float>(sampleXValues.Count);
+
+            for (int i = 0; i < rotated.Length; ++i)
+            {
+                Vector3 v = rotated[i];
+
+                if (Mathf.Abs(v.y - centerY) > halfLength + settings.BendSafeJointMargin)
+                {
+                    continue;
+                }
+
+                if (hasVerticalBand)
+                {
+                    float vertical = Vector3.Dot(v, rotatedUp);
+
+                    if (vertical < verticalMin || vertical > verticalMax)
+                    {
+                        continue;
+                    }
+                }
+
+                float dx = v.x - centerX;
+                float dz = v.z - centerZ;
+                radiusValues.Add(Mathf.Sqrt((dx * dx) + (dz * dz)));
+            }
+
+            if (radiusValues.Count == 0)
+            {
+                return false;
+            }
+
+            float radius = Percentile(radiusValues, radiusPercentile) * settings.HipsRadiusScale;
+            float minRadius = settings.MinRadius;
+
+            if (spineDistance > 1.0e-6f)
+            {
+                minRadius = Mathf.Max(minRadius, spineDistance * settings.HipsMinRadiusBySpineDistance);
+            }
+
+            float maxRadius = Mathf.Max(minRadius, length * settings.HipsMaxRadiusByLengthRatio);
+            maxRadius *= settings.GetRadiusCapScale(fitMode);
+            radius = Mathf.Clamp(radius, minRadius, maxRadius);
+
+            result = new FitResult
+            {
+                LocalRotation = localRotation,
+                Direction = MagicaCapsuleCollider.Direction.Y,
+                Center = new Vector3(centerX, centerY, centerZ),
+                Length = length,
+                RadiusAtMin = radius,
+                RadiusAtMax = radius,
+                ReverseDirection = false,
+            };
+
+            return true;
+        }
+
         private static float GetBendSafeMaxLength(BodyFitProperty settings, BoneFitRole role, float jointDistance)
         {
             if (jointDistance <= 1.0e-6f)
@@ -177,6 +321,11 @@ namespace MagicaClothColliderBuilder
 
         private static Vector3 GetHipsUp(Animator animator, Transform hipsTransform)
         {
+            if (animator == null || hipsTransform == null)
+            {
+                return Vector3.zero;
+            }
+
             var spine = animator.GetBoneTransform(HumanBodyBones.Spine);
 
             if (spine == null) return Vector3.zero;
@@ -186,11 +335,71 @@ namespace MagicaClothColliderBuilder
             return localSpine.normalized;
         }
 
+        private static Vector3 GetHipsHorizontal(Animator animator, Transform hipsTransform, BodyFitProperty settings)
+        {
+            if (animator != null && hipsTransform != null)
+            {
+                var leftUpperLeg = animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg);
+                var rightUpperLeg = animator.GetBoneTransform(HumanBodyBones.RightUpperLeg);
+
+                if (leftUpperLeg != null && rightUpperLeg != null)
+                {
+                    Vector3 localLeft = hipsTransform.InverseTransformPoint(leftUpperLeg.position);
+                    Vector3 localRight = hipsTransform.InverseTransformPoint(rightUpperLeg.position);
+                    Vector3 legHorizontal = localRight - localLeft;
+
+                    if (legHorizontal.sqrMagnitude > 1.0e-8f)
+                    {
+                        Vector3 rootRight = hipsTransform.InverseTransformDirection(hipsTransform.root != null ? hipsTransform.root.right : Vector3.right);
+
+                        if (Vector3.Dot(legHorizontal, rootRight) < 0.0f)
+                        {
+                            legHorizontal = -legHorizontal;
+                        }
+
+                        return legHorizontal;
+                    }
+                }
+            }
+
+            var worldHorizontal = settings.HorizontalAxis == BodyHorizontalAxis.RootForward
+                ? (hipsTransform.root != null ? hipsTransform.root.forward : Vector3.forward)
+                : (hipsTransform.root != null ? hipsTransform.root.right : Vector3.right);
+
+            return hipsTransform.InverseTransformDirection(worldHorizontal);
+        }
+
+        private static float GetUpperLegDistance(Animator animator, Transform hipsTransform, Vector3 localHorizontal)
+        {
+            if (animator == null || hipsTransform == null || localHorizontal.sqrMagnitude <= 1.0e-8f)
+            {
+                return 0.0f;
+            }
+
+            var leftUpperLeg = animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg);
+            var rightUpperLeg = animator.GetBoneTransform(HumanBodyBones.RightUpperLeg);
+
+            if (leftUpperLeg == null || rightUpperLeg == null)
+            {
+                return 0.0f;
+            }
+
+            Vector3 localLeft = hipsTransform.InverseTransformPoint(leftUpperLeg.position);
+            Vector3 localRight = hipsTransform.InverseTransformPoint(rightUpperLeg.position);
+
+            return Mathf.Abs(Vector3.Dot(localRight - localLeft, localHorizontal.normalized));
+        }
+
         private static Vector3 GetBodyUp(Animator animator, Transform bodyTransform, BoneFitRole role)
         {
             if (role == BoneFitRole.Hips)
             {
                 return GetHipsUp(animator, bodyTransform);
+            }
+
+            if (animator == null || bodyTransform == null)
+            {
+                return Vector3.zero;
             }
 
             Transform upTarget = null;
