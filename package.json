@@ -7,4 +7,7 @@
   "licenseUrl": "https://github.com/NullClone/MagicaClothColliderBuilder/blob/main/LICENSE.md",
   "changelogUrl": "https://github.com/NullClone/MagicaClothColliderBuilder/blob/main/CHANGELOG.md",
   "author": "NullClone"
+  "legacyFolders" : {
+    "Assets\\MagicaClothColliderBuilder" : "00000000000000000000000000000000"
+  }
 }
