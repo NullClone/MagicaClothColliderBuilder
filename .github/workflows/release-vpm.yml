@@ -58,12 +58,18 @@ jobs:
         env:
           GITHUB_REPO: ${{ github.repository }}
           GITHUB_TAG: ${{ github.event.release.tag_name }}
-          VPM_REPO_URL: 'https://nullclone.github.io/vpm-listing/index.json'
         run: |
-          import json, os
+          import json, os, hashlib
 
+          zip_path = f"{os.environ['GITHUB_WORKSPACE']}/{os.environ['ZIP_NAME']}"
           pkg_json_path = f"{os.environ['GITHUB_WORKSPACE']}/{os.environ['PACKAGE_PATH']}/package.json"
           vpm_index_path = f"{os.environ['GITHUB_WORKSPACE']}/vpm-repo/index.json"
+
+          sha256_hash = hashlib.sha256()
+          with open(zip_path, "rb") as f:
+              for byte_block in iter(lambda: f.read(4096), b""):
+                  sha256_hash.update(byte_block)
+          zip_hash = sha256_hash.hexdigest()
 
           with open(pkg_json_path, 'r', encoding='utf-8') as f:
               pkg_data = json.load(f)
@@ -72,9 +78,6 @@ jobs:
 
           pkg_name = os.environ['PKG_NAME']
           version = os.environ['PKG_VERSION']
-          repo = os.environ['GITHUB_REPO']
-          tag = os.environ['GITHUB_TAG']
-          zip_name = os.environ['ZIP_NAME']
 
           if 'packages' not in index_data:
               index_data['packages'] = {}
@@ -82,11 +85,7 @@ jobs:
               index_data['packages'][pkg_name] = {"versions": {}}
 
           vpm_package_entry = pkg_data.copy()
-          vpm_package_entry['url'] = f"https://github.com/{repo}/releases/download/{tag}/{zip_name}"
-          vpm_package_entry['repo'] = os.environ['VPM_REPO_URL']
-          
-          if 'vpmDependencies' not in vpm_package_entry:
-              vpm_package_entry['vpmDependencies'] = {}
+          vpm_package_entry['zipSHA256'] = zip_hash
 
           index_data['packages'][pkg_name]['versions'][version] = vpm_package_entry
 
