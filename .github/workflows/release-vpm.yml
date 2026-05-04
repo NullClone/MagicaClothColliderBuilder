@@ -58,6 +58,7 @@ jobs:
         env:
           GITHUB_REPO: ${{ github.repository }}
           GITHUB_TAG: ${{ github.event.release.tag_name }}
+          VPM_REPO_URL: 'https://nullclone.github.io/vpm-listing/index.json'
         run: |
           import json, os
 
@@ -71,19 +72,23 @@ jobs:
 
           pkg_name = os.environ['PKG_NAME']
           version = os.environ['PKG_VERSION']
+          repo = os.environ['GITHUB_REPO']
+          tag = os.environ['GITHUB_TAG']
+          zip_name = os.environ['ZIP_NAME']
 
           if 'packages' not in index_data:
               index_data['packages'] = {}
           if pkg_name not in index_data['packages']:
               index_data['packages'][pkg_name] = {"versions": {}}
 
-          repo = os.environ['GITHUB_REPO']
-          tag = os.environ['GITHUB_TAG']
-          zip_name = os.environ['ZIP_NAME']
+          vpm_package_entry = pkg_data.copy()
+          vpm_package_entry['url'] = f"https://github.com/{repo}/releases/download/{tag}/{zip_name}"
+          vpm_package_entry['repo'] = os.environ['VPM_REPO_URL']
           
-          pkg_data['url'] = f"https://github.com/{repo}/releases/download/{tag}/{zip_name}"
+          if 'vpmDependencies' not in vpm_package_entry:
+              vpm_package_entry['vpmDependencies'] = {}
 
-          index_data['packages'][pkg_name]['versions'][version] = pkg_data
+          index_data['packages'][pkg_name]['versions'][version] = vpm_package_entry
 
           with open(vpm_index_path, 'w', encoding='utf-8') as f:
               json.dump(index_data, f, indent=4, ensure_ascii=False)
