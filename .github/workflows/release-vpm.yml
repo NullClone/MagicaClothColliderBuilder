@@ -1,0 +1,97 @@
+name: Release VPM
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+env:
+  PACKAGE_PATH: '.'
+  VPM_REPO: 'NullClone/vpm-listing'
+
+jobs:
+  build-and-update-vpm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Tool Repository
+        uses: actions/checkout@v4
+
+      - name: Get Package Info
+        id: pkg_info
+        run: |
+          PKG_NAME=$(jq -r .name ${{ env.PACKAGE_PATH }}/package.json)
+          PKG_VERSION=$(jq -r .version ${{ env.PACKAGE_PATH }}/package.json)
+          ZIP_NAME="${PKG_NAME}-${PKG_VERSION}.zip"
+
+          echo "PKG_NAME=${PKG_NAME}" >> $GITHUB_ENV
+          echo "PKG_VERSION=${PKG_VERSION}" >> $GITHUB_ENV
+          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
+
+      - name: Create ZIP Archive
+        run: |
+          cd ${{ env.PACKAGE_PATH }}
+          zip -qr "${GITHUB_WORKSPACE}/${{ env.ZIP_NAME }}" . -x "*.git*" "*.DS_Store*"
+
+      - name: Upload ZIP to Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} "${GITHUB_WORKSPACE}/${{ env.ZIP_NAME }}"
+
+      - name: Checkout VPM Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.VPM_REPO }}
+          token: ${{ secrets.VPM_PAT }}
+          path: 'vpm-repo'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Update VPM index.json
+        env:
+          GITHUB_REPO: ${{ github.repository }}
+          GITHUB_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          import json, os
+
+          pkg_json_path = f"{os.environ['GITHUB_WORKSPACE']}/{os.environ['PACKAGE_PATH']}/package.json"
+          vpm_index_path = f"{os.environ['GITHUB_WORKSPACE']}/vpm-repo/index.json"
+
+          with open(pkg_json_path, 'r', encoding='utf-8') as f:
+              pkg_data = json.load(f)
+          with open(vpm_index_path, 'r', encoding='utf-8') as f:
+              index_data = json.load(f)
+
+          pkg_name = os.environ['PKG_NAME']
+          version = os.environ['PKG_VERSION']
+
+          if 'packages' not in index_data:
+              index_data['packages'] = {}
+          if pkg_name not in index_data['packages']:
+              index_data['packages'][pkg_name] = {"versions": {}}
+
+          repo = os.environ['GITHUB_REPO']
+          tag = os.environ['GITHUB_TAG']
+          zip_name = os.environ['ZIP_NAME']
+          
+          pkg_data['url'] = f"https://github.com/{repo}/releases/download/{tag}/{zip_name}"
+
+          index_data['packages'][pkg_name]['versions'][version] = pkg_data
+
+          with open(vpm_index_path, 'w', encoding='utf-8') as f:
+              json.dump(index_data, f, indent=4, ensure_ascii=False)
+        shell: python
+
+      - name: Commit and Push to VPM Repo
+        run: |
+          cd vpm-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.json
+          git commit -m "Add ${PKG_NAME} ${PKG_VERSION}"
+          git push
